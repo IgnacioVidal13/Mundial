@@ -1,93 +1,99 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
 <meta charset="UTF-8">
 <title>Álbum Mundial</title>
 
 <style>
 body {
-  margin: 0;
-  font-family: Arial;
-  background: #f5f5f5;
+  margin:0;
+  font-family:Arial;
+  background:#f5f5f5;
 }
 
 header {
-  background: #111;
-  color: white;
-  padding: 15px;
-  display: flex;
-  justify-content: space-between;
+  background-image: url(https://img.magnific.com/fotos-premium/resumen-rojo-azul-verde-14-fondo-ilustracion-papel-tapiz-textura_792836-3716.jpg);
+  background:#111;
+  color:white;
+  padding:15px;
+  display:flex;
+  justify-content:space-between;
 }
 
 nav button {
-  margin-left: 10px;
-  padding: 8px 12px;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: bold;
+  margin-left:10px;
+  padding:8px 12px;
+  border:none;
+  border-radius:6px;
+  cursor:pointer;
+  font-weight:bold;
 }
 
-.todas { background: #2196F3; color: white; }
-.tengo { background: #4CAF50; color: white; }
-.repetidas { background: #FFC107; }
-.faltan { background: #F44336; color: white; }
+.todas { background:#2196F3; color:white; }
+.tengo { background:#4CAF50; color:white; }
+.repetidas { background:#FFC107; }
+.faltan { background:#F44336; color:white; }
 
-.hidden { display: none; }
+.hidden { display:none; }
 
-main { padding: 20px; }
-
-#resumen {
-  margin-bottom: 20px;
-}
+main { padding:20px; }
 
 #barra-container {
-  width: 100%;
-  height: 12px;
-  background: #ddd;
-  border-radius: 6px;
-  overflow: hidden;
+  width:100%;
+  height:12px;
+  background:#ddd;
+  border-radius:6px;
+  overflow:hidden;
 }
 
 #barra {
-  height: 100%;
-  width: 0%;
-  background: #4CAF50;
-  transition: width 0.3s;
-}
-
-.pais {
-  margin-bottom: 25px;
+  height:100%;
+  width:0%;
+  background:#4CAF50;
 }
 
 .grid-figuritas {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+}
+
+.titulo {
+  font-size:24px;
+  font-weight:bold;
+  font-family: monospace;
+  color: goldenrod;
 }
 
 .figurita {
-  width: 60px;
-  height: 60px;
-  background: white;
-  border: 2px solid #ccc;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 11px;
-  cursor: pointer;
-  transition: 0.2s;
+  width:60px;
+  height:60px;
+  background:white;
+  border:2px solid #ccc;
+  border-radius:8px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:11px;
+  cursor:pointer;
+  position:relative;
 }
 
-.figurita:hover {
-  transform: scale(1.08);
-  box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+.figurita.tengo {
+  background:#4CAF50;
+  color:white;
+}
+
+.figurita.tengo::after {
+  content:"✕";
+  position:absolute;
+  font-size:24px;
 }
 
 .repetida {
-  background: #FFC107;
-  border-color: #FFC107;
+  background:#FFC107;
+  font-weight:bold;
 }
 </style>
 </head>
@@ -95,32 +101,30 @@ main { padding: 20px; }
 <body>
 
 <header>
-  <div>Álbum Mundial</div>
+  <div class="titulo">MI LISTA MUNDIALISTA</div>
   <nav>
-    <button class="todas" onclick="mostrar('todas')">Todas</button>
-    <button class="tengo" onclick="mostrar('tengo')">Tengo</button>
-    <button class="repetidas" onclick="mostrar('repetidas')">Repetidas</button>
-    <button class="faltan" onclick="mostrar('faltan')">Me faltan</button>
+    <button onclick="mostrar('todas')">Todas</button>
+    <button onclick="mostrar('tengo')">Tengo</button>
+    <button onclick="mostrar('repetidas')">Repetidas</button>
+    <button onclick="mostrar('faltan')">Me faltan</button>
   </nav>
 </header>
 
 <main>
+<div id="contador"></div>
 
-<div id="resumen">
-  <div id="contador"></div>
-  <div id="barra-container">
-    <div id="barra"></div>
-  </div>
+<div id="barra-container">
+  <div id="barra"></div>
 </div>
 
 <section id="todas"></section>
 <section id="tengo" class="hidden"></section>
 <section id="repetidas" class="hidden"></section>
 <section id="faltan" class="hidden"></section>
-
 </main>
 
 <script>
+
 const codigos = [
 "FWC","MEX","RSA","KOR","CZE","CAN","BIH","QAT","SUI","BRA","MAR","HAI","SCO","USA","PAR",
 "AUS","TUR","GER","CUW","CIV","ECU","NED","JPN","SWE","TUN","BEL","EGY","IRN","NZL","ESP",
@@ -133,125 +137,196 @@ let vistaActual = "todas";
 
 function mostrar(seccion) {
   vistaActual = seccion;
+
   ["todas","tengo","repetidas","faltan"].forEach(id => {
     document.getElementById(id).classList.add("hidden");
   });
+
   document.getElementById(seccion).classList.remove("hidden");
 }
 
 function inicializar() {
-  figuritas = []; // 🔴 clave
+  figuritas = [];
 
   codigos.forEach(codigo => {
+
     let inicio = (codigo === "FWC") ? 0 : 1;
     let fin = (codigo === "FWC") ? 19 : 20;
 
     for (let i = inicio; i <= fin; i++) {
-      let numero = i.toString().padStart(2, "0");
-
       figuritas.push({
-        id: `${codigo} ${numero}`,
+        id: `${codigo} ${i.toString().padStart(2,"0")}`,
         codigo,
-        estado: "faltan"
+        estado: "faltan",
+        cantidad: 0
       });
     }
   });
 }
 
-function render() {
-  const todas = document.getElementById("todas");
-  const tengo = document.getElementById("tengo");
-  const repetidas = document.getElementById("repetidas");
-  const faltan = document.getElementById("faltan");
+function crearBloquePais(nombre) {
+  const div = document.createElement("div");
+  div.className = "pais";
 
-  todas.innerHTML = "<h2>Todas</h2>";
-  tengo.innerHTML = "<h2>Tengo</h2>";
-  repetidas.innerHTML = "<h2>Repetidas</h2>";
-  faltan.innerHTML = "<h2>Me faltan</h2>";
+  const titulo = document.createElement("h3");
+  titulo.textContent = nombre;
+
+  const grid = document.createElement("div");
+  grid.className = "grid-figuritas";
+
+  div.appendChild(titulo);
+  div.appendChild(grid);
+
+  return { div, grid };
+}
+
+function render() {
+
+  const secciones = {
+    todas: document.getElementById("todas"),
+    tengo: document.getElementById("tengo"),
+    repetidas: document.getElementById("repetidas"),
+    faltan: document.getElementById("faltan")
+  };
+
+  Object.keys(secciones).forEach(sec => {
+    secciones[sec].innerHTML = `<h2>${sec.toUpperCase()}</h2>`;
+  });
 
   const mapas = { todas:{}, tengo:{}, repetidas:{}, faltan:{} };
 
   codigos.forEach(codigo => {
-    mapas.todas[codigo] = crearBloquePais(codigo);
-    mapas.tengo[codigo] = crearBloquePais(codigo);
-    mapas.repetidas[codigo] = crearBloquePais(codigo);
-    mapas.faltan[codigo] = crearBloquePais(codigo);
+    Object.keys(mapas).forEach(sec => {
+      mapas[sec][codigo] = crearBloquePais(codigo);
+    });
   });
 
   figuritas.forEach(fig => {
-    const div = document.createElement("div");
-    div.className = "figurita";
-    div.textContent = fig.id;
 
-    if (fig.estado === "tengo") div.classList.add("tengo");
-    if (fig.estado === "repetidas") div.classList.add("repetida");
+    // TODAS
+    const box = document.createElement("div");
+    box.className = "figurita";
+    box.textContent = fig.id;
 
-    div.onclick = () => {
+    if (fig.estado === "tengo") {
+      box.classList.add("tengo");
+    }
+
+    box.onclick = () => {
       if (vistaActual === "todas") {
         fig.estado = (fig.estado === "faltan") ? "tengo" : "faltan";
         render();
       }
     };
 
-    div.ondblclick = (e) => {
-      if (vistaActual === "todas") {
-        e.stopPropagation();
-        fig.estado = "repetidas";
-        render();
+    // botón R
+    const btn = document.createElement("button");
+    btn.textContent = "R";
+
+    btn.style.position = "absolute";
+    btn.style.top = "2px";
+    btn.style.right = "4px";
+    btn.style.border = "none";
+    btn.style.background = "transparent";
+    btn.style.cursor = "pointer";
+
+    btn.onclick = (e) => {
+      e.stopPropagation();
+
+      fig.cantidad = (fig.cantidad || 0) + 1;
+
+      if (fig.estado === "faltan") {
+        fig.estado = "tengo";
       }
+
+      render();
     };
 
-    // TODAS
-    const divTodas = document.createElement("div");
-    divTodas.className = "figurita";
-    divTodas.textContent = fig.id;
+    box.appendChild(btn);
+    mapas.todas[fig.codigo].grid.appendChild(box);
 
-    if (fig.estado === "tengo") divTodas.classList.add("tengo");
-    if (fig.estado === "repetidas") divTodas.classList.add("repetida");
+    // TENGO / FALTAN
+    const simple = document.createElement("div");
+    simple.className = "figurita";
+    simple.textContent = fig.id;
 
-    divTodas.onclick = div.onclick;
-    divTodas.ondblclick = div.ondblclick;
+    if (fig.estado === "tengo") {
+      simple.classList.add("tengo");
+    }
 
-    mapas.todas[fig.codigo].grid.appendChild(divTodas);
-    mapas[fig.estado][fig.codigo].grid.appendChild(div);
+    mapas[fig.estado][fig.codigo].grid.appendChild(simple);
+
+    // REPETIDAS
+    if (fig.cantidad > 0) {
+
+      const rep = document.createElement("div");
+      rep.className = "figurita repetida";
+      rep.textContent = `${fig.id} x${fig.cantidad}`;
+
+      const btnX = document.createElement("button");
+      btnX.textContent = "✕";
+
+      btnX.style.position = "absolute";
+      btnX.style.top = "2px";
+      btnX.style.right = "4px";
+      btnX.style.border = "none";
+      btnX.style.background = "transparent";
+      btnX.style.cursor = "pointer";
+
+      btnX.onclick = (e) => {
+        e.stopPropagation();
+
+        fig.cantidad--;
+
+        if (fig.cantidad < 0) {
+          fig.cantidad = 0;
+        }
+
+        render();
+      };
+
+      rep.appendChild(btnX);
+      mapas.repetidas[fig.codigo].grid.appendChild(rep);
+    }
+
   });
 
-  ["todas","tengo","repetidas","faltan"].forEach(sec => {
+  Object.keys(mapas).forEach(sec => {
     codigos.forEach(codigo => {
       const bloque = mapas[sec][codigo];
+
       if (bloque.grid.children.length > 0) {
-        document.getElementById(sec).appendChild(bloque.div);
+        secciones[sec].appendChild(bloque.div);
       }
     });
   });
 
-  // CONTADOR + PROGRESO
   const total = figuritas.length;
-  const faltanCount = figuritas.filter(f => f.estado === "faltan").length;
-  const tengoCount = total - faltanCount;
+  const faltan = figuritas.filter(f => f.estado === "faltan").length;
+
+  const totalRepetidas = figuritas.reduce((acc, f) => acc + (f.cantidad || 0), 0);
+
+  const porcentaje = (faltan / total * 100).toFixed(1);
 
   document.getElementById("contador").textContent =
-    `Te faltan ${faltanCount} de ${total} figuritas`;
+  `Te faltan ${faltan} de ${total} (${porcentaje}%) | Repetidas: ${totalRepetidas}`;
 
   document.getElementById("barra").style.width =
-    ((tengoCount / total) * 100) + "%";
+    ((total - faltan) / total * 100) + "%";
 
   localStorage.setItem("figuritas", JSON.stringify(figuritas));
 }
 
+// INIT
 const guardado = localStorage.getItem("figuritas");
 
 if (guardado) {
   figuritas = JSON.parse(guardado);
-
-  // validar tamaño esperado (~1000 figuritas)
-  if (figuritas.length < 900) {
-    inicializar();
-  }
 } else {
   inicializar();
 }
-render(); 
+
+render();
 mostrar("todas");
 
 </script>
