@@ -451,7 +451,7 @@
     else inicializar();
 
     async function generarPDF() {
-    // 1. Pedir el título personalizado con botones de colores específicos
+    // 1. Alerta con botones Azul (OK) y Rojo (Cancelar)
     const { value: tituloUsuario } = await Swal.fire({
         title: 'Título del PDF',
         input: 'text',
@@ -460,8 +460,8 @@
         showCancelButton: true,
         confirmButtonText: 'OK',
         cancelButtonText: 'Cancelar',
-        confirmButtonColor: '#007bff', // Azul
-        cancelButtonColor: '#dc3545',  // Rojo
+        confirmButtonColor: '#007bff', 
+        cancelButtonColor: '#dc3545',
         background: '#1a1a1a',
         color: '#ffffff'
     });
@@ -472,84 +472,85 @@
     const doc = new jsPDF();
     let y = 20;
 
-    // Cálculo de Estadísticas
-    const totalFigus = figuritas.length;
+    // Estadísticas
+    const total = figuritas.length;
     const tengo = figuritas.filter(f => f.estado === "tengo").length;
-    const faltanTotal = totalFigus - tengo;
-    const porcentaje = ((tengo / totalFigus) * 100).toFixed(1);
+    const faltanCount = total - tengo;
+    const progreso = ((tengo / total) * 100).toFixed(1);
 
-    // Encabezado Principal
-    doc.setFontSize(22);
-    doc.setTextColor(255, 87, 34); 
+    // Encabezado
+    doc.setFontSize(20);
+    doc.setTextColor(255, 87, 34);
     doc.text(tituloUsuario.toUpperCase(), 105, y, { align: "center" });
     y += 15;
 
-    // Cuadro de Resumen
-    doc.setDrawColor(200);
-    doc.setFillColor(245, 245, 245);
+    // Cuadro de Resumen (Álbum de:)
+    doc.setFillColor(240, 240, 240);
     doc.rect(15, y, 180, 25, 'F');
-    
     doc.setFontSize(11);
-    doc.setTextColor(50);
-    // REEMPLAZO SOLICITADO: "Álbum de:"
-    doc.text(`Álbum de: ${tituloUsuario}`, 25, y + 10);
-    doc.text(`Progreso: ${porcentaje}% (${tengo}/${totalFigus})`, 25, y + 18);
-    
-    doc.setTextColor(244, 67, 54);
-    doc.setFont("helvetica", "bold");
-    doc.text(`FALTAN: ${faltanTotal}`, 130, y + 15);
-    doc.setFont("helvetica", "normal");
-    
+    doc.setTextColor(40);
+    doc.text(`Álbum de: ${tituloUsuario}`, 25, y + 10); // Reemplazado solicitado
+    doc.text(`Progreso: ${progreso}% (${tengo}/${total})`, 25, y + 18);
+    doc.setTextColor(220, 20, 20);
+    doc.text(`FALTAN: ${faltanCount}`, 140, y + 14);
     y += 35;
 
-    // SECCIÓN FALTANTES
+    // SECCIÓN FALTANTES - Lógica blindada
     doc.setFontSize(16);
-    doc.setTextColor(244, 67, 54);
-    doc.text("DETALLE POR PAÍS (FALTANTES)", 15, y);
+    doc.setTextColor(220, 20, 20);
+    doc.text("DETALLE DE FALTANTES", 15, y);
     y += 10;
 
-    for (const c of codigos) {
-        const faltan = figuritas.filter(f => f.codigo === c && f.estado === "faltan");
-        if (faltan.length > 0) {
-            const numeros = faltan.map(f => f.id.split(" ")[1]).join(", ");
-            const linea = `${c}: ${numeros}`;
-            const lineasDivididas = doc.splitTextToSize(linea, 180);
-            for (const l of lineasDivididas) {
+    // Usamos un array de códigos limpio para asegurar el recorrido
+    const listaCodigos = ["FWC","MEX","RSA","KOR","CZE","CAN","BIH","QAT","SUI","BRA","MAR","HAI","SCO","USA","PAR","AUS","TUR","GER","CUW","CIV","ECU","NED","JPN","SWE","TUN","BEL","EGY","IRN","NZL","ESP","CPV","KSA","URU","FRA","SEN","IRQ","NOR","ARG","ALG","AUT","JOR","POR","COD","UZB","COL","ENG","CRO","GHA","PAN"];
+
+    listaCodigos.forEach(codigoPais => {
+        const faltantesPais = figuritas.filter(f => f.codigo === codigoPais && f.estado === "faltan");
+        
+        if (faltantesPais.length > 0) {
+            const numeros = faltantesPais.map(f => f.id.split(' ')[1]).join(", ");
+            const textoLinea = `${codigoPais}: ${numeros}`;
+            
+            const lineasADibujar = doc.splitTextToSize(textoLinea, 180);
+            doc.setFontSize(9);
+            doc.setTextColor(0);
+
+            lineasADibujar.forEach(linea => {
                 if (y > 275) { doc.addPage(); y = 20; }
-                doc.setFontSize(9);
-                doc.setTextColor(0);
-                doc.text(l, 15, y);
+                doc.text(linea, 15, y);
                 y += 6;
-            }
+            });
         }
-    }
+    });
 
     // SECCIÓN REPETIDAS
     y += 10;
     if (y > 250) { doc.addPage(); y = 20; }
-    
     doc.setFontSize(16);
-    doc.setTextColor(76, 175, 80);
+    doc.setTextColor(40, 160, 40);
     doc.text("MIS REPETIDAS", 15, y);
     y += 10;
 
-    for (const c of codigos) {
-        const repes = figuritas.filter(f => f.codigo === c && f.cantidad > 0);
-        if (repes.length > 0) {
-            const numerosRepes = repes.map(f => `${f.id.split(" ")[1]} (x${f.cantidad})`).join(", ");
-            const lineaRepes = `${c}: ${numerosRepes}`;
-            const lineasDivididas = doc.splitTextToSize(lineaRepes, 180);
-            for (const l of lineasDivididas) {
+    listaCodigos.forEach(codigoPais => {
+        const repesPais = figuritas.filter(f => f.codigo === codigoPais && f.cantidad > 0);
+        
+        if (repesPais.length > 0) {
+            const numRepes = repesPais.map(f => `${f.id.split(' ')[1]}(x${f.cantidad})`).join(", ");
+            const textoRepe = `${codigoPais}: ${numRepes}`;
+            const lineasRepes = doc.splitTextToSize(textoRepe, 180);
+            
+            doc.setFontSize(9);
+            doc.setTextColor(0);
+
+            lineasRepes.forEach(l => {
                 if (y > 275) { doc.addPage(); y = 20; }
-                doc.setFontSize(9);
-                doc.setTextColor(0);
                 doc.text(l, 15, y);
                 y += 6;
-            }
+            });
         }
-    }
+    });
 
-    doc.save(`${tituloUsuario.replace(/ /g, "_")}.pdf`);
+    doc.save(`${tituloUsuario.replace(/\s+/g, '_')}.pdf`);
 }
 
     renderMejorado();
@@ -632,7 +633,28 @@ function extraerDatosPro(texto) {
         "fw": "FWC",
         "mx": "MEX",
         "ar": "ARG",
-        "br": "BRA"
+        "br": "BRA",
+        "rsa": "RSA",
+        "kor": "KOR",
+        "cze": "CZE",
+        "sce": "SCO",
+        "usa": "USA",
+        "us" : "USA",
+        "cso": "SCO",
+        "sui": "SUI",
+        "qat": "QAT",
+        "mar": "MAR",
+        "hai": "HAI",
+        "sco": "SCO",
+        "par": "PAR",
+        "aus": "AUS",
+        "tur": "TUR",
+        "ger": "GER",
+        "cuw": "CUW",
+        "civ": "CIV",
+        "cu ": "CUW",
+        "rsa": "RSA",
+        "cor": "KOR",
     };
 
     // 4. Buscar en el diccionario principal de países
