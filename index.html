@@ -265,7 +265,9 @@
             icon: 'error',
             confirmButtonColor: '#2196F3',
             background: '#1a1a1a',
-            color: '#ffffff'
+            color: '#ffffff',
+            allowEnterKey: false, // Evita el cierre rápido con Enter
+            stopKeydownPropagation: true // Frena el evento para que no afecte al input
         });
     }
 }
@@ -459,9 +461,9 @@ document.getElementById("busqueda").addEventListener("keydown", e => {
 
     async function generarPDF() {
     const { value: tituloUsuario } = await Swal.fire({
-        title: 'Título del PDF',
+        title: 'Escribi tu nombre',
         input: 'text',
-        inputValue: 'Escribí tu nombre',
+        inputValue: '',
         showCancelButton: true,
         confirmButtonText: 'Generar',
         cancelButtonText: 'Cerrar',
@@ -498,7 +500,7 @@ document.getElementById("busqueda").addEventListener("keydown", e => {
         doc.rect(15, y, 180, 25, 'F');
         doc.setFontSize(10);
         doc.setTextColor(40);
-        doc.text(`Álbum: ${tituloUsuario}`, 25, y + 10);
+        doc.text(`Álbum de: ${tituloUsuario}`, 25, y + 10);
         doc.text(`Progreso: ${porcentaje}% (${tengo}/${total})`, 25, y + 18);
         doc.setTextColor(220, 20, 20);
         doc.text(`FALTAN: ${faltanTotal}`, 140, y + 14);
@@ -568,7 +570,15 @@ document.getElementById("busqueda").addEventListener("keydown", e => {
         }
 
         // --- 5. GUARDADO ---
-        doc.save(`${tituloUsuario.replace(/\s+/g, '_')}.pdf`);
+        if (/iPhone|iPad|iPod/.test(navigator.userAgent)) {
+    // Si es iPhone, creamos un archivo temporal y lo abrimos en pestaña nueva
+    const blob = doc.output('blob');
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank'); 
+} else {
+    // Para Android o PC, la descarga clásica funciona bien
+    doc.save("Figuritas.pdf");
+}
 
     } catch (e) {
         alert("Error General: " + e.message);
