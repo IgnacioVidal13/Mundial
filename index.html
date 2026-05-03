@@ -166,7 +166,7 @@
     <div class="busqueda-container">
         <input type="text" id="busqueda" placeholder="Código de país (ej: ARG)...">
         <button id="btnBuscar" onclick="buscarPais()">Buscar</button>
-        <button onclick="activarVoz()" style="background: #FF5722; color: white; border-radius: 50%; width: 50px; height: 50px; border: none; cursor: pointer;">
+        <button onclick="activarVoz()" style="background: #7ea9b7; color: white; border-radius: 50%; width: 50px; height: 50px; border: none; cursor: pointer;">
     🎤
 </button>
     </div>
@@ -451,17 +451,17 @@
     else inicializar();
 
     async function generarPDF() {
-    // 1. SweetAlert con botones Azul y Rojo
+    // 1. Configuración de la alerta con los colores solicitados
     const { value: tituloUsuario } = await Swal.fire({
         title: 'Título del PDF',
         input: 'text',
-        inputLabel: 'Escribí el nombre de tu álbum',
-        inputValue: 'Mi Álbum Mundial',
+        inputLabel: 'Escribí tu nombre',
+        inputValue: '',
         showCancelButton: true,
         confirmButtonText: 'OK',
         cancelButtonText: 'Cancelar',
-        confirmButtonColor: '#007bff', 
-        cancelButtonColor: '#dc3545',
+        confirmButtonColor: '#007bff', // Azul
+        cancelButtonColor: '#dc3545',  // Rojo
         background: '#1a1a1a',
         color: '#ffffff'
     });
@@ -473,93 +473,103 @@
         const doc = new jsPDF();
         let y = 20;
 
-        // Estadísticas
-        const total = figuritas.length;
+        // 2. Cálculos de estadísticas
+        const totalFigus = figuritas.length;
         const tengo = figuritas.filter(f => f.estado === "tengo").length;
-        const faltanTotal = total - tengo;
-        const progreso = ((tengo / total) * 100).toFixed(1);
+        const faltanTotal = totalFigus - tengo;
+        const porcentaje = ((tengo / totalFigus) * 100).toFixed(1);
 
-        // Título y Resumen
-        doc.setFontSize(20);
-        doc.setTextColor(255, 87, 34);
+        // 3. Diseño del encabezado
+        doc.setFontSize(22);
+        doc.setTextColor(255, 87, 34); 
         doc.text(tituloUsuario.toUpperCase(), 105, y, { align: "center" });
         y += 15;
 
-        doc.setFillColor(240, 240, 240);
+        // Cuadro de información (REEMPLAZO: Álbum de:)
+        doc.setDrawColor(200);
+        doc.setFillColor(245, 245, 245);
         doc.rect(15, y, 180, 25, 'F');
+        
         doc.setFontSize(11);
-        doc.setTextColor(40);
+        doc.setTextColor(50);
         doc.text(`Álbum de: ${tituloUsuario}`, 25, y + 10);
-        doc.text(`Progreso: ${progreso}% (${tengo}/${total})`, 25, y + 18);
-        doc.setTextColor(220, 20, 20);
-        doc.text(`FALTAN: ${faltanTotal}`, 140, y + 14);
+        doc.text(`Progreso: ${porcentaje}% (${tengo}/${totalFigus})`, 25, y + 18);
+        
+        doc.setTextColor(244, 67, 54);
+        doc.setFont("helvetica", "bold");
+        doc.text(`FALTAN: ${faltanTotal}`, 130, y + 15);
+        doc.setFont("helvetica", "normal");
         y += 35;
 
+        // 4. Lista de códigos oficial
         const listaCodigos = ["FWC","MEX","RSA","KOR","CZE","CAN","BIH","QAT","SUI","BRA","MAR","HAI","SCO","USA","PAR","AUS","TUR","GER","CUW","CIV","ECU","NED","JPN","SWE","TUN","BEL","EGY","IRN","NZL","ESP","CPV","KSA","URU","FRA","SEN","IRQ","NOR","ARG","ALG","AUT","JOR","POR","COD","UZB","COL","ENG","CRO","GHA","PAN"];
 
         // --- SECCIÓN FALTANTES ---
         doc.setFontSize(16);
-        doc.setTextColor(220, 20, 20);
-        doc.text("DETALLE DE FALTANTES", 15, y);
+        doc.setTextColor(244, 67, 54);
+        doc.text("DETALLE POR PAÍS (FALTANTES)", 15, y);
         y += 10;
 
-        for (const cod of listaCodigos) {
-            const faltantes = figuritas.filter(f => f.codigo === cod && f.estado !== "tengo");
+        for (let i = 0; i < listaCodigos.length; i++) {
+            const cod = listaCodigos[i];
+            // Filtro de faltantes: No es "tengo"
+            const faltan = figuritas.filter(f => f.codigo === cod && f.estado !== "tengo");
             
-            if (faltantes.length > 0) {
-                // Sacamos el número de forma ultra segura
-                const numeros = faltantes.map(f => {
-                    return f.id.replace(cod, "").trim(); 
-                }).filter(n => n !== "").join(", ");
-
-                if (numeros) {
-                    const texto = `${cod}: ${numeros}`;
-                    const lineas = doc.splitTextToSize(texto, 180);
-                    doc.setFontSize(9);
-                    doc.setTextColor(0);
-                    for (const l of lineas) {
-                        if (y > 275) { doc.addPage(); y = 20; }
-                        doc.text(l, 15, y);
-                        y += 6;
-                    }
-                }
-            }
-        }
-
-        // --- SECCIÓN REPETIDAS ---
-        y += 10;
-        if (y > 250) { doc.addPage(); y = 20; }
-        doc.setFontSize(16);
-        doc.setTextColor(40, 160, 40);
-        doc.text("MIS REPETIDAS", 15, y);
-        y += 10;
-
-        for (const cod of listaCodigos) {
-            const repes = figuritas.filter(f => f.codigo === cod && f.cantidad > 0);
-            
-            if (repes.length > 0) {
-                const numRepes = repes.map(f => {
-                    const n = f.id.replace(cod, "").trim();
-                    return `${n}(x${f.cantidad})`;
-                }).join(", ");
-
-                const textoR = `${cod}: ${numRepes}`;
-                const lineasR = doc.splitTextToSize(textoR, 180);
+            if (faltan.length > 0) {
+                // Sacamos el número limpiando el código del ID
+                const numeros = faltan.map(f => f.id.replace(cod, "").trim()).join(", ");
+                const linea = `${cod}: ${numeros}`;
+                const lineasWrap = doc.splitTextToSize(linea, 180);
+                
                 doc.setFontSize(9);
                 doc.setTextColor(0);
-                for (const lr of lineasR) {
+                for (let j = 0; j < lineasWrap.length; j++) {
                     if (y > 275) { doc.addPage(); y = 20; }
-                    doc.text(lr, 15, y);
+                    doc.text(lineasWrap[j], 15, y);
                     y += 6;
                 }
             }
         }
 
-        doc.save(`${tituloUsuario.replace(/\s+/g, '_')}.pdf`);
+        // --- SECCIÓN REPETIDAS ---
+        y += 15;
+        if (y > 250) { doc.addPage(); y = 20; }
+        
+        doc.setFontSize(16);
+        doc.setTextColor(76, 175, 80);
+        doc.text("MIS REPETIDAS", 15, y);
+        y += 10;
+
+        for (let i = 0; i < listaCodigos.length; i++) {
+            const cod = listaCodigos[i];
+            const repes = figuritas.filter(f => f.codigo === cod && parseInt(f.cantidad) > 0);
+            
+            if (repes.length > 0) {
+                const textoRepes = repes.map(f => {
+                    const n = f.id.replace(cod, "").trim();
+                    return `${n}(x${f.cantidad})`;
+                }).join(", ");
+                
+                const lineaRepe = `${cod}: ${textoRepes}`;
+                const wrapRepe = doc.splitTextToSize(lineaRepe, 180);
+                
+                doc.setFontSize(9);
+                doc.setTextColor(0);
+                for (let k = 0; k < wrapRepe.length; k++) {
+                    if (y > 275) { doc.addPage(); y = 20; }
+                    doc.text(wrapRepe[k], 15, y);
+                    y += 6;
+                }
+            }
+        }
+
+        // 5. Descarga final
+        const nombreArchivo = tituloUsuario.replace(/\s+/g, '_') + ".pdf";
+        doc.save(nombreArchivo);
 
     } catch (error) {
-        console.error("Error al generar PDF:", error);
-        Swal.fire('Error', 'Hubo un fallo al crear el PDF. Revisá la consola.', 'error');
+        console.error("Error generando el PDF:", error);
+        alert("Hubo un error al generar el archivo. Por favor, reintentá.");
     }
 }
 
