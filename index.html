@@ -451,12 +451,12 @@
     else inicializar();
 
     async function generarPDF() {
-    // 1. Alerta con botones Azul (OK) y Rojo (Cancelar)
+    // 1. SweetAlert con botones Azul y Rojo
     const { value: tituloUsuario } = await Swal.fire({
         title: 'Título del PDF',
         input: 'text',
-        inputLabel: 'Escribí tu nombre',
-        inputValue: '',
+        inputLabel: 'Escribí el nombre de tu álbum',
+        inputValue: 'Mi Álbum Mundial',
         showCancelButton: true,
         confirmButtonText: 'OK',
         cancelButtonText: 'Cancelar',
@@ -468,95 +468,99 @@
 
     if (!tituloUsuario) return;
 
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF();
-    let y = 20;
+    try {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        let y = 20;
 
-    // Estadísticas
-    const total = figuritas.length;
-    const tengo = figuritas.filter(f => f.estado === "tengo").length;
-    const faltanCount = total - tengo;
-    const progreso = ((tengo / total) * 100).toFixed(1);
+        // Estadísticas
+        const total = figuritas.length;
+        const tengo = figuritas.filter(f => f.estado === "tengo").length;
+        const faltanTotal = total - tengo;
+        const progreso = ((tengo / total) * 100).toFixed(1);
 
-    // Encabezado
-    doc.setFontSize(20);
-    doc.setTextColor(255, 87, 34);
-    doc.text(tituloUsuario.toUpperCase(), 105, y, { align: "center" });
-    y += 15;
+        // Título y Resumen
+        doc.setFontSize(20);
+        doc.setTextColor(255, 87, 34);
+        doc.text(tituloUsuario.toUpperCase(), 105, y, { align: "center" });
+        y += 15;
 
-    // Cuadro de Resumen (Álbum de:)
-    doc.setFillColor(240, 240, 240);
-    doc.rect(15, y, 180, 25, 'F');
-    doc.setFontSize(11);
-    doc.setTextColor(40);
-    doc.text(`Álbum de: ${tituloUsuario}`, 25, y + 10); // Reemplazado solicitado
-    doc.text(`Progreso: ${progreso}% (${tengo}/${total})`, 25, y + 18);
-    doc.setTextColor(220, 20, 20);
-    doc.text(`FALTAN: ${faltanCount}`, 140, y + 14);
-    y += 35;
+        doc.setFillColor(240, 240, 240);
+        doc.rect(15, y, 180, 25, 'F');
+        doc.setFontSize(11);
+        doc.setTextColor(40);
+        doc.text(`Álbum de: ${tituloUsuario}`, 25, y + 10);
+        doc.text(`Progreso: ${progreso}% (${tengo}/${total})`, 25, y + 18);
+        doc.setTextColor(220, 20, 20);
+        doc.text(`FALTAN: ${faltanTotal}`, 140, y + 14);
+        y += 35;
 
-    // --- SECCIÓN FALTANTES ---
-    doc.setFontSize(16);
-    doc.setTextColor(220, 20, 20);
-    doc.text("DETALLE DE FALTANTES", 15, y);
-    y += 10;
+        const listaCodigos = ["FWC","MEX","RSA","KOR","CZE","CAN","BIH","QAT","SUI","BRA","MAR","HAI","SCO","USA","PAR","AUS","TUR","GER","CUW","CIV","ECU","NED","JPN","SWE","TUN","BEL","EGY","IRN","NZL","ESP","CPV","KSA","URU","FRA","SEN","IRQ","NOR","ARG","ALG","AUT","JOR","POR","COD","UZB","COL","ENG","CRO","GHA","PAN"];
 
-    const listaCodigos = ["FWC","MEX","RSA","KOR","CZE","CAN","BIH","QAT","SUI","BRA","MAR","HAI","SCO","USA","PAR","AUS","TUR","GER","CUW","CIV","ECU","NED","JPN","SWE","TUN","BEL","EGY","IRN","NZL","ESP","CPV","KSA","URU","FRA","SEN","IRQ","NOR","ARG","ALG","AUT","JOR","POR","COD","UZB","COL","ENG","CRO","GHA","PAN"];
+        // --- SECCIÓN FALTANTES ---
+        doc.setFontSize(16);
+        doc.setTextColor(220, 20, 20);
+        doc.text("DETALLE DE FALTANTES", 15, y);
+        y += 10;
 
-    for (const codigoActual of listaCodigos) {
-        // Forzamos la comparación a String y Mayúsculas para que no haya error
-        const faltantesDelPais = figuritas.filter(f => 
-            f.codigo.toString().toUpperCase().trim() === codigoActual.toString().toUpperCase().trim() && 
-            f.estado === "faltan"
-        );
-        
-        if (faltantesDelPais.length > 0) {
-            const numeros = faltantesDelPais.map(f => f.id.split(' ')[1]).join(", ");
-            const textoLinea = `${codigoActual}: ${numeros}`;
+        for (const cod of listaCodigos) {
+            const faltantes = figuritas.filter(f => f.codigo === cod && f.estado !== "tengo");
             
-            const lineasADibujar = doc.splitTextToSize(textoLinea, 180);
-            doc.setFontSize(9);
-            doc.setTextColor(0);
+            if (faltantes.length > 0) {
+                // Sacamos el número de forma ultra segura
+                const numeros = faltantes.map(f => {
+                    return f.id.replace(cod, "").trim(); 
+                }).filter(n => n !== "").join(", ");
 
-            for (const linea of lineasADibujar) {
-                if (y > 275) { doc.addPage(); y = 20; }
-                doc.text(linea, 15, y);
-                y += 6;
+                if (numeros) {
+                    const texto = `${cod}: ${numeros}`;
+                    const lineas = doc.splitTextToSize(texto, 180);
+                    doc.setFontSize(9);
+                    doc.setTextColor(0);
+                    for (const l of lineas) {
+                        if (y > 275) { doc.addPage(); y = 20; }
+                        doc.text(l, 15, y);
+                        y += 6;
+                    }
+                }
             }
         }
-    }
 
-    // --- SECCIÓN REPETIDAS ---
-    y += 10;
-    if (y > 250) { doc.addPage(); y = 20; }
-    doc.setFontSize(16);
-    doc.setTextColor(40, 160, 40);
-    doc.text("MIS REPETIDAS", 15, y);
-    y += 10;
+        // --- SECCIÓN REPETIDAS ---
+        y += 10;
+        if (y > 250) { doc.addPage(); y = 20; }
+        doc.setFontSize(16);
+        doc.setTextColor(40, 160, 40);
+        doc.text("MIS REPETIDAS", 15, y);
+        y += 10;
 
-    for (const codigoActual of listaCodigos) {
-        const repesDelPais = figuritas.filter(f => 
-            f.codigo.toString().toUpperCase().trim() === codigoActual.toString().toUpperCase().trim() && 
-            f.cantidad > 0
-        );
-        
-        if (repesDelPais.length > 0) {
-            const numRepes = repesDelPais.map(f => `${f.id.split(' ')[1]}(x${f.cantidad})`).join(", ");
-            const textoRepe = `${codigoActual}: ${numRepes}`;
-            const lineasRepes = doc.splitTextToSize(textoRepe, 180);
+        for (const cod of listaCodigos) {
+            const repes = figuritas.filter(f => f.codigo === cod && f.cantidad > 0);
             
-            doc.setFontSize(9);
-            doc.setTextColor(0);
+            if (repes.length > 0) {
+                const numRepes = repes.map(f => {
+                    const n = f.id.replace(cod, "").trim();
+                    return `${n}(x${f.cantidad})`;
+                }).join(", ");
 
-            for (const l of lineasRepes) {
-                if (y > 275) { doc.addPage(); y = 20; }
-                doc.text(l, 15, y);
-                y += 6;
+                const textoR = `${cod}: ${numRepes}`;
+                const lineasR = doc.splitTextToSize(textoR, 180);
+                doc.setFontSize(9);
+                doc.setTextColor(0);
+                for (const lr of lineasR) {
+                    if (y > 275) { doc.addPage(); y = 20; }
+                    doc.text(lr, 15, y);
+                    y += 6;
+                }
             }
         }
-    }
 
-    doc.save(`${tituloUsuario.replace(/\s+/g, '_')}.pdf`);
+        doc.save(`${tituloUsuario.replace(/\s+/g, '_')}.pdf`);
+
+    } catch (error) {
+        console.error("Error al generar PDF:", error);
+        Swal.fire('Error', 'Hubo un fallo al crear el PDF. Revisá la consola.', 'error');
+    }
 }
 
     renderMejorado();
