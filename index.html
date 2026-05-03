@@ -1,495 +1,396 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<title>Álbum Mundial</title>
+    <meta charset="UTF-8">
+    <title>Álbum Mundial - Gestión de Figuritas</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;700&display=swap" rel="stylesheet">
 
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        /* --- ESTILOS BASE --- */
+        body {
+            margin: 0;
+            font-family: 'Oswald', Arial, sans-serif;
+            background: #111;
+        }
 
-<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;700&display=swap" rel="stylesheet">
+        /* --- HEADER Y NAVEGACIÓN --- */
+        header {
+            background: #111;
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid gold;
+        }
 
-<style>
+        header div {
+            color: gold;
+            font-size: 22px;
+            font-weight: 700;
+        }
 
-/* BASE */
-body {
-  margin:0;
-  font-family: 'Oswald', Arial;
-  background:#111;
-}
+        nav button {
+            margin-left: 10px;
+            padding: 8px 12px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: opacity 0.2s;
+        }
 
-/* HEADER */
-header {
-  background:#111;
-  padding:15px;
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-}
+        nav button:hover { opacity: 0.8; }
+        .todas { background: #2196F3; color: white; }
+        .tengo { background: #4CAF50; color: white; }
+        .repetidas { background: #FFC107; color: #333; }
+        .faltan { background: #F44336; color: white; }
 
-header div {
-  color: gold;
-  font-size:22px;
-  font-weight:700;
-}
+        /* --- CONTENIDO PRINCIPAL (EFECTO LAVA) --- */
+        main {
+            padding: 20px;
+            min-height: 100vh;
+            color: white;
+            background: linear-gradient(270deg, #ffffff, #67b7f4, #ffffff, #679cff);
+            background-size: 800% 800%;
+            animation: lava 18s ease infinite;
+        }
 
-/* BOTONES */
-.todas { background:#2196F3; color:white; }
-.tengo { background:#4CAF50; color:white; }
-.repetidas { background:#FFC107; }
-.faltan { background:#F44336; color:white; }
+        @keyframes lava {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
 
-nav button {
-  margin-left:10px;
-  padding:8px 12px;
-  border:none;
-  border-radius:6px;
-  cursor:pointer;
-  font-weight:bold;
-}
+        /* --- BARRA DE PROGRESO Y COPA --- */
+        #contador {
+            margin-bottom: 15px;
+            font-size: 18px;
+            font-weight: bold;
+            text-shadow: 0 0 5px rgba(0,0,0,0.5);
+        }
 
-/* FONDO LAVA */
-main {
-  padding:20px;
-  min-height:100vh;
-  color:white;
+        #barra-container {
+            width: 100%;
+            height: 35px;
+            background: #222;
+            border-radius: 20px;
+            position: relative;
+            margin-bottom: 30px;
+        }
 
-  background: linear-gradient(270deg, #ffffff, #67b7f4, #ffffff, #679cff);
-  background-size: 800% 800%;
-  animation: lava 18s ease infinite;
-}
+        #barra {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #d4af37, #ffd700, #d4af37);
+            border-radius: 20px;
+            transition: width 0.5s ease;
+        }
 
-@keyframes lava {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
-}
+        #copa {
+            position: absolute;
+            top: 50%;
+            left: 0;
+            width: 50px;
+            transform: translate(-50%, -50%) rotate(90deg);
+            transition: left 0.5s ease;
+            pointer-events: none
+        }
 
-/* CONTADOR */
-#contador {
-  margin-bottom:15px;
-  color:white;
-  font-size:18px;
-  font-weight:bold;
-  text-shadow: 0 0 5px black;
-}
+        #copa.completo { filter: drop-shadow(0 0 10px gold); }
 
-/* BARRA */
-#barra-container {
-  width:100%;
-  height:40px; /* más alto para dar espacio */
-  background:#222;
-  border-radius:20px;
-  position:relative;
-  overflow:visible; /* permite que la copa sobresalga */
-}
+        /* --- BUSCADOR (CORREGIDO SEGÚN IMAGEN) --- */
+        .busqueda-container {
+            display: flex;
+            justify-content: center;
+            align-items: stretch;
+            margin: 30px auto;
+            max-width: 500px;
+        }
 
-#barra {
-  height:100%;
-  width:0%;
-  background: linear-gradient(90deg, #d4af37, #ffd700, #d4af37);
-  border-radius:20px;
-}
+        #busqueda {
+            flex: 1;
+            padding: 12px 15px;
+            border: 1px solid #ccc;
+            border-right: none;
+            border-radius: 4px 0 0 4px;
+            font-family: inherit;
+            outline: none;
+            box-sizing: border-box;
+            font-size: 16px;
+        }
 
-/* COPA REAL */
-#copa {
-  position:absolute;
-  top:50%;            /* centrada verticalmente dentro de la barra */
-  left:0;
-  width:60px;
-  transform: translate(-50%, 20%); /* centra en ambos ejes */
-  pointer-events:none;
-  transition: left 0.3s ease;
-  rotate: 90deg;
-}
+        #btnBuscar {
+            padding: 12px 25px;
+            background: #2196F3;
+            color: white;
+            border: 1px solid #2196F3;
+            border-radius: 0 4px 4px 0;
+            cursor: pointer;
+            font-weight: bold;
+            font-family: inherit;
+            text-transform: uppercase;
+            box-sizing: border-box;
+        }
 
-#copa.completo {
-  filter: drop-shadow(0 0 8px gold);
-}
+        #btnBuscar:hover { background: #1976D2; }
 
-/* GRID */
-.grid-figuritas {
-  display:flex;
-  flex-wrap:wrap;
-  gap:10px;
-}
+        /* --- GRID Y FIGURITAS --- */
+        .grid-figuritas {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
 
-/* FIGURITAS */
-.figurita {
-  width:60px;
-  height:60px;
-  background:white;
-  border:2px solid #ccc;
-  border-radius:8px;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  font-size:11px;
-  cursor:pointer;
-  position:relative;
-  color:black;
-}
+        .figurita {
+            width: 60px;
+            height: 60px;
+            background: white;
+            border: 2px solid #ccc;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            cursor: pointer;
+            position: relative;
+            color: black;
+            font-weight: bold;
+        }
 
-.figurita.tengo {
-  background:#4CAF50;
-  color:white;
-}
+        .figurita.tengo { background: #4CAF50; color: white; border-color: #388E3C; }
+        .figurita.repetida { background: #FFC107; color: #333; }
+        
+        .btn-repetida {
+            position: absolute;
+            top: 2px;
+            right: 4px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            font-size: 10px;
+            color: inherit;
+        }
 
-.figurita.tengo::after {
-  content:"✕";
-  position:absolute;
-  font-size:24px;
-}
+        .hidden { display: none; }
 
-.repetida {
-  background:#FFC107;
-  font-weight:bold;
-}
-
-.hidden {
-  display:none;
-}
-
-.busqueda-container {
-  display: flex;
-  justify-content: center; /* centra horizontalmente */
-  margin: 20px 0;
-}
-#busqueda {
-margin-bottom: 10px;
-margin: 20px auto;
-padding: 5px;
-width: 250px;
-padding-top: 20px;
-text-align: center;
-border-color: transparent;
-align-self: center;
-}
-
-.pais {
-margin: 5px 0;
-padding: 5px;
-border: 1px solid #ccc;
-display: inline-block;
-}
-.resaltado {
-background-color: rgba(167, 167, 40, 0.737);
-}
-/* =========================
-RESPONSIVE MOBILE FULL
-   ========================= */
-@media (max-width: 768px) {
-
-  /* HEADER */
-  header {
-    flex-direction: column;
-    gap: 10px;
-    text-align: center;
-  }
-
-  nav {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 6px;
-  }
-
-  nav button {
-    margin-left: 0;
-    font-size: 12px;
-    padding: 6px 8px;
-    min-height: 36px;
-  }
-
-  /* MAIN TEXTOS */
-  #contador {
-    font-size: 14px;
-  }
-
-  h3 {
-    font-size: 14px;
-  }
-
-  /* BUSCADOR */
-  #busqueda {
-    width: 90%;
-    font-size: 14px;
-  }
-
-  /* GRID FIGURITAS */
-  .figurita {
-    width: 48px;
-    height: 48px;
-    font-size: 9px;
-  }
-
-  .grid-figuritas {
-    gap: 6px;
-  }
-
-  /* BARRA PROGRESO */
-  #barra-container {
-    height: 30px;
-  }
-
-  #copa {
-    width: 40px;
-    transform: translate(-50%, 10%) rotate(90deg);
-  }
-
-  /* OPTIMIZACIÓN GENERAL UX */
-  button {
-    min-height: 36px;
-  }
-
-  html, body {
-    height: 100%;
-    overflow-x: hidden;
-    -webkit-overflow-scrolling: touch;
-  }
-}
-</style>
+        /* --- RESPONSIVE --- */
+        @media (max-width: 768px) {
+            header { flex-direction: column; gap: 10px; }
+            .busqueda-container { width: 95%; }
+            #busqueda { width: 60%; }
+        }
+    </style>
 </head>
-
 <body>
 
 <header>
-  <div>MI LISTA MUNDIALISTA</div>
-  <nav>
-    <button class="todas" onclick="mostrar('todas')">Todas</button>
-    <button class="tengo" onclick="mostrar('tengo')">Tengo</button>
-    <button class="repetidas" onclick="mostrar('repetidas')">Repetidas</button>
-    <button class="faltan" onclick="mostrar('faltan')">Me faltan</button>
-  </nav>
+    <div>MI LISTA MUNDIALISTA</div>
+    <nav>
+        <button class="todas" onclick="mostrar('todas')">Todas</button>
+        <button class="tengo" onclick="mostrar('tengo')">Tengo</button>
+        <button class="repetidas" onclick="mostrar('repetidas')">Repetidas</button>
+        <button class="faltan" onclick="mostrar('faltan')">Me faltan</button>
+    </nav>
 </header>
 
-
 <main>
+    <div id="contador"></div>
 
-<div id="contador"></div>
+    <div id="barra-container">
+        <div id="barra"></div>
+        <img id="copa" src="copa.png" alt="Trofeo">
+    </div>
 
-<div id="barra-container">
-  <div id="barra"></div>
-  <img id="copa" src="copa.png">
-</div>
-<div class="busqueda-container">
-<input type="text" id="busqueda" placeholder="Buscar país por codigo...">
-</div>
-  <div id="lista"></div>
+    <div class="busqueda-container">
+        <input type="text" id="busqueda" placeholder="Buscar país por código (ej: ARG)...">
+        <button id="btnBuscar" onclick="buscarPais()">Buscar</button>
+    </div>
 
-<section id="todas"></section>
-<section id="tengo" class="hidden"></section>
-<section id="repetidas" class="hidden"></section>
-<section id="faltan" class="hidden"></section>
-
+    <section id="todas"></section>
+    <section id="tengo" class="hidden"></section>
+    <section id="repetidas" class="hidden"></section>
+    <section id="faltan" class="hidden"></section>
 </main>
 
 <script>
+    const codigos = [
+        "FWC","MEX","RSA","KOR","CZE","CAN","BIH","QAT","SUI","BRA",
+        "MAR","HAI","SCO","USA","PAR","AUS","TUR","GER","CUW",
+        "CIV","ECU","NED","JPN","SWE","TUN","BEL","EGY","IRN",
+        "NZL","ESP","CPV","KSA","URU","FRA","SEN","IRQ","NOR",
+        "ARG","ALG","AUT","JOR","POR","COD","UZB","COL","ENG",
+        "CRO","GHA","PAN"
+    ];
 
-const codigos = [
-"FWC ","MEX ","RSA ","KOR ","CZE","CAN ","BIH ","QAT ","SUI ","BRA ",
-"MAR ","HAI ","SCO ","USA ","PAR ","AUS ","TUR ","GER ","CUW ",
-"CIV ","ECU ","NED ","JPN ","SWE ","TUN ","BEL ","EGY ","IRN ",
-"NZL ","ESP ","CPV ","KSA ","URU ","FRA ","SEN ","IRQ ","NOR ",
-"ARG ","ALG ","AUT ","JOR ","POR ","COD ","UZB ","COL ","ENG ",
-"CRO ','GHA ','PAN "
-];
+    let figuritas = [];
+    let vistaActual = "todas";
 
+    // Inicialización de datos
+    function inicializar() {
+        figuritas = [];
+        codigos.forEach(codigo => {
+            let inicio = (codigo === "FWC") ? 0 : 1;
+            let fin = (codigo === "FWC") ? 19 : 20;
 
-let figuritas = [];
-let vistaActual = "todas";
-
-function mostrar(seccion) {
-  vistaActual = seccion;
-  ["todas","tengo","repetidas","faltan"].forEach(id => {
-    document.getElementById(id).classList.add("hidden");
-  });
-  document.getElementById(seccion).classList.remove("hidden");
-}
-
-function inicializar() {
-  figuritas = [];
-  codigos.forEach(codigo => {
-    let inicio = (codigo === "FWC") ? 0 : 1;
-    let fin = (codigo === "FWC") ? 19 : 20;
-
-    for (let i = inicio; i <= fin; i++) {
-      figuritas.push({
-        id: `${codigo} ${i.toString().padStart(2,"0")}`,
-        codigo,
-        estado: "faltan",
-        cantidad: 0
-      });
+            for (let i = inicio; i <= fin; i++) {
+                figuritas.push({
+                    id: `${codigo} ${i.toString().padStart(2, "0")}`,
+                    codigo,
+                    estado: "faltan",
+                    cantidad: 0
+                });
+            }
+        });
     }
-  });
-}
 
-const lista = document.getElementById("lista");
-    
-
-   function crearBloquePais(nombre) {
-  const div = document.createElement("div");
-  // id = código (ej: "MEX"), tomo la primera palabra antes del emoji
-  div.id = nombre.split(" ")[0]; 
-  const titulo = document.createElement("h3");
-  titulo.textContent = nombre;
-
-  const grid = document.createElement("div");
-  grid.className = "grid-figuritas";
-
-  div.appendChild(titulo);
-  div.appendChild(grid);
-
-  return { div, grid };
-}
-
-// buscador que lleva al bloque del país
-const busqueda = document.getElementById("busqueda");
-busqueda.addEventListener("keydown", e => {
-  if (e.key === "Enter") {
-    const filtro = e.target.value.trim().toUpperCase();
-
-    // usamos la sección actual
-    const seccionActual = document.getElementById(vistaActual);
-    const bloque = seccionActual.querySelector(`#${filtro}`);
-
-    if (bloque) {
-      bloque.scrollIntoView({ behavior: "smooth", block: "center" });
-      bloque.style.backgroundColor = "yellow";
-      setTimeout(() => bloque.style.backgroundColor = "", 2000);
+    function mostrar(seccion) {
+        vistaActual = seccion;
+        ["todas", "tengo", "repetidas", "faltan"].forEach(id => {
+            document.getElementById(id).classList.add("hidden");
+        });
+        document.getElementById(seccion).classList.remove("hidden");
     }
-  }
-});
 
+    function crearBloquePais(codigo) {
+        const div = document.createElement("div");
+        div.id = codigo; 
+        div.innerHTML = `<h3>${codigo}</h3><div class="grid-figuritas"></div>`;
+        return { div, grid: div.querySelector(".grid-figuritas") };
+    }
 
-function render() {
+    function buscarPais() {
+        const filtro = document.getElementById("busqueda").value.trim().toUpperCase();
+        const seccionActual = document.getElementById(vistaActual);
+        const bloque = seccionActual.querySelector(`#${filtro}`);
 
-  const secciones = {
-    todas: document.getElementById("todas"),
-    tengo: document.getElementById("tengo"),
-    repetidas: document.getElementById("repetidas"),
-    faltan: document.getElementById("faltan")
-  };
+        if (bloque) {
+            bloque.scrollIntoView({ behavior: "smooth", block: "center" });
+            const titulo = bloque.querySelector("h3");
+            titulo.style.color = "yellow";
+            setTimeout(() => titulo.style.color = "", 2000);
+        } else {
+            alert("Código no encontrado en esta vista");
+        }
+    }
 
-  Object.keys(secciones).forEach(sec => {
-    secciones[sec].innerHTML = `<h2>${sec.toUpperCase()}</h2>`;
-  });
-
-  const mapas = { todas:{}, tengo:{}, repetidas:{}, faltan:{} };
-
-  codigos.forEach(codigo => {
-    Object.keys(mapas).forEach(sec => {
-      mapas[sec][codigo] = crearBloquePais(codigo);
+    // Evento para Enter en el buscador
+    document.getElementById("busqueda").addEventListener("keydown", e => {
+        if (e.key === "Enter") buscarPais();
     });
-  });
 
-  figuritas.forEach(fig => {
+    function render() {
+        const secciones = {
+            todas: document.getElementById("todas"),
+            tengo: document.getElementById("tengo"),
+            repetidas: document.getElementById("repetidas"),
+            faltan: document.getElementById("faltan")
+        };
 
-    const box = document.createElement("div");
-    box.className = "figurita";
-    box.textContent = fig.id;
+        // Limpiar secciones
+        Object.keys(secciones).forEach(sec => {
+            secciones[sec].innerHTML = `<h2>${sec.toUpperCase()}</h2>`;
+        });
 
-    if (fig.estado === "tengo") box.classList.add("tengo");
+        // Crear mapas de contenedores por país
+        const mapas = { todas: {}, tengo: {}, repetidas: {}, faltan: {} };
+        codigos.forEach(codigo => {
+            Object.keys(mapas).forEach(sec => {
+                mapas[sec][codigo] = crearBloquePais(codigo);
+            });
+        });
 
-    box.onclick = () => {
-      if (vistaActual === "todas") {
-        fig.estado = (fig.estado === "faltan") ? "tengo" : "faltan";
-        render();
-      }
-    };
+        figuritas.forEach(fig => {
+            // Figurita para vista "TODAS"
+            const box = document.createElement("div");
+            box.className = `figurita ${fig.estado === "tengo" ? "tengo" : ""}`;
+            box.textContent = fig.id;
+            
+            // Botón de repetidas (R)
+            const btnR = document.createElement("button");
+            btnR.className = "btn-repetida";
+            btnR.textContent = "R";
+            btnR.onclick = (e) => {
+                e.stopPropagation();
+                fig.cantidad++;
+                fig.estado = "tengo";
+                render();
+            };
 
-    const btn = document.createElement("button");
-    btn.textContent = "R";
-    btn.style.position = "absolute";
-    btn.style.top = "2px";
-    btn.style.right = "4px";
-    btn.style.border = "none";
-    btn.style.background = "transparent";
-    btn.style.cursor = "pointer";
+            box.onclick = () => {
+                fig.estado = (fig.estado === "faltan") ? "tengo" : "faltan";
+                if (fig.estado === "faltan") fig.cantidad = 0;
+                render();
+            };
 
-    btn.onclick = (e) => {
-      e.stopPropagation();
-      fig.cantidad = (fig.cantidad || 0) + 1;
-      if (fig.estado === "faltan") fig.estado = "tengo";
-      render();
-    };
+            box.appendChild(btnR);
+            mapas.todas[fig.codigo].grid.appendChild(box);
 
-    box.appendChild(btn);
-    mapas.todas[fig.codigo].grid.appendChild(box);
+            // Figurita para vista específica (Tengo / Faltan)
+            if (fig.estado !== "repetidas") { // Evitar duplicar lógica si no es necesario
+                const simple = document.createElement("div");
+                simple.className = `figurita ${fig.estado === "tengo" ? "tengo" : ""}`;
+                simple.textContent = fig.id;
+                mapas[fig.estado][fig.codigo].grid.appendChild(simple);
+            }
 
-    const simple = document.createElement("div");
-    simple.className = "figurita";
-    simple.textContent = fig.id;
+            // Figuritas Repetidas
+            if (fig.cantidad > 0) {
+                const rep = document.createElement("div");
+                rep.className = "figurita repetida";
+                rep.innerHTML = `${fig.id} <br> x${fig.cantidad}`;
+                
+                const btnX = document.createElement("button");
+                btnX.className = "btn-repetida";
+                btnX.textContent = "✕";
+                btnX.onclick = (e) => {
+                    e.stopPropagation();
+                    fig.cantidad = Math.max(0, fig.cantidad - 1);
+                    render();
+                };
 
-    if (fig.estado === "tengo") simple.classList.add("tengo");
+                rep.appendChild(btnX);
+                mapas.repetidas[fig.codigo].grid.appendChild(rep);
+            }
+        });
 
-    mapas[fig.estado][fig.codigo].grid.appendChild(simple);
+        // Inyectar solo los bloques que tengan figuritas
+        Object.keys(mapas).forEach(sec => {
+            codigos.forEach(codigo => {
+                if (mapas[sec][codigo].grid.children.length > 0) {
+                    secciones[sec].appendChild(mapas[sec][codigo].div);
+                }
+            });
+        });
 
-    if (fig.cantidad > 0) {
-      const rep = document.createElement("div");
-      rep.className = "figurita repetida";
-      rep.textContent = `${fig.id} x${fig.cantidad}`;
-
-      const btnX = document.createElement("button");
-      btnX.textContent = "✕";
-      btnX.style.position = "absolute";
-      btnX.style.top = "2px";
-      btnX.style.right = "4px";
-      btnX.style.border = "none";
-      btnX.style.background = "transparent";
-      btnX.style.cursor = "pointer";
-
-      btnX.onclick = (e) => {
-        e.stopPropagation();
-        fig.cantidad = Math.max(0, fig.cantidad - 1);
-        render();
-      };
-
-      rep.appendChild(btnX);
-      mapas.repetidas[fig.codigo].grid.appendChild(rep);
+        actualizarProgreso();
+        localStorage.setItem("figuritas", JSON.stringify(figuritas));
     }
 
-  });
+    function actualizarProgreso() {
+        const total = figuritas.length;
+        const faltan = figuritas.filter(f => f.estado === "faltan").length;
+        const totalRepetidas = figuritas.reduce((acc, f) => acc + f.cantidad, 0);
+        const progreso = ((total - faltan) / total) * 100;
 
-  Object.keys(mapas).forEach(sec => {
-    codigos.forEach(codigo => {
-      const bloque = mapas[sec][codigo];
-      if (bloque.grid.children.length > 0) {
-        secciones[sec].appendChild(bloque.div);
-      }
-    });
-  });
+        document.getElementById("contador").textContent = 
+            `Te faltan ${faltan} de ${total} (${(progreso).toFixed(1)}%) | Repetidas: ${totalRepetidas}`;
+        
+        document.getElementById("barra").style.width = progreso + "%";
+        document.getElementById("copa").style.left = progreso + "%";
 
-  const total = figuritas.length;
-  const faltan = figuritas.filter(f => f.estado === "faltan").length;
-  const totalRepetidas = figuritas.reduce((acc, f) => acc + (f.cantidad || 0), 0);
+        if (progreso >= 100) document.getElementById("copa").classList.add("completo");
+        else document.getElementById("copa").classList.remove("completo");
+    }
 
-  const progreso = (total - faltan) / total * 100;
-  const porcentaje = (faltan / total * 100).toFixed(1);
+    // Carga inicial
+    const guardado = localStorage.getItem("figuritas");
+    if (guardado) figuritas = JSON.parse(guardado);
+    else inicializar();
 
-  document.getElementById("contador").textContent =
-    `Te faltan ${faltan} de ${total} (${porcentaje}%) | Repetidas: ${totalRepetidas}`;
-
-  document.getElementById("barra").style.width = progreso + "%";
-
-  document.getElementById("copa").style.left = progreso + "%";
-
-  localStorage.setItem("figuritas", JSON.stringify(figuritas));
-
-  if (progreso >= 100) {
-  document.getElementById("copa").classList.add("completo");
-} else {
-  document.getElementById("copa").classList.remove("completo");
-}
-}
-
-
-const guardado = localStorage.getItem("figuritas");
-if (guardado) figuritas = JSON.parse(guardado);
-else inicializar();
-
-render();
-mostrar("todas");
-
+    render();
+    mostrar("todas");
 </script>
 
 </body>
