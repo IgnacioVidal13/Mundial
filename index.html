@@ -144,6 +144,102 @@
 </head>
 <body>
 
+    <!-- SISTEMA DE LOGIN Y REGISTRO (INDEPENDIENTE) -->
+<div id="login-overlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #111; z-index: 9999; display: flex; align-items: center; justify-content: center; font-family: 'Oswald', sans-serif;">
+    <div style="background: #ffffff; padding: 30px; border-radius: 15px; border: 2px solid gold; width: 90%; max-width: 400px; text-align: center;">
+        <div id="login-form">
+            <h2 style="color: rgb(0, 0, 0);">INICIAR SESIÓN</h2>
+            <input type="text" id="user-login" placeholder="Usuario" style="width: 100%; padding: 12px; margin: 10px 0; background: #9c9c9c; color: white; border: 1px solid #444; border-radius: 5px;">
+            <input type="password" id="pass-login" placeholder="Contraseña" style="width: 100%; padding: 12px; margin: 10px 0; background: #9c9c9c; color: white; border: 1px solid #444; border-radius: 5px;">
+            <button onclick="auth('login')" style="width: 100%; padding: 12px; background: rgb(187, 255, 255); border: none; font-weight: bold; cursor: pointer; margin-top: 10px;">ENTRAR</button>
+            <p style="color: #aaa; margin-top: 15px;">¿No tienes cuenta? <a href="#" onclick="toggleAuth()" style="color: gold;">Regístrate</a></p>
+        </div>
+
+        <div id="register-form" style="display: none;">
+            <h2 style="color: #5e5e5e;">CREAR CUENTA</h2>
+            <input type="text" id="user-reg" placeholder="Nuevo Usuario" style="width: 100%; padding: 12px; margin: 10px 0; background: #9c9c9c; color: white; border: 1px solid #444; border-radius: 5px;">
+            <input type="password" id="pass-reg" placeholder="Contraseña" style="width: 100%; padding: 12px; margin: 10px 0; background: #9c9c9c; color: white; border: 1px solid #444; border-radius: 5px;">
+            <button onclick="auth('register')" style="width: 100%; padding: 12px; background: #4CAF50; color: white; border: none; font-weight: bold; cursor: pointer; margin-top: 10px;">REGISTRARME</button>
+            <p style="color: #aaa; margin-top: 15px;">¿Ya tienes cuenta? <a href="#" onclick="toggleAuth()" style="color: rgb(166, 255, 246);">Inicia sesión</a></p>
+        </div>
+    </div>
+</div>
+
+<script>
+    let usuarioActual = "";
+
+    function toggleAuth() {
+        const l = document.getElementById('login-form');
+        const r = document.getElementById('register-form');
+        l.style.display = l.style.display === 'none' ? 'block' : 'none';
+        r.style.display = r.style.display === 'none' ? 'block' : 'none';
+    }
+
+    function auth(tipo) {
+        const u = document.getElementById(tipo === 'login' ? 'user-login' : 'user-reg').value.trim().toLowerCase();
+        const p = document.getElementById(tipo === 'login' ? 'pass-login' : 'pass-reg').value;
+
+        if (!u || !p) return Swal.fire('Error', 'Completa los campos', 'error');
+
+        let usuarios = JSON.parse(localStorage.getItem('db_usuarios') || '{}');
+
+        if (tipo === 'register') {
+            if (usuarios[u]) return Swal.fire('Error', 'El usuario ya existe', 'error');
+            usuarios[u] = { password: p };
+            localStorage.setItem('db_usuarios', JSON.stringify(usuarios));
+            // Crear álbum vacío para el nuevo usuario
+            inicializar(); // Esta es TU función original
+            localStorage.setItem("figuritas_" + u, JSON.stringify(figuritas));
+            Swal.fire('Éxito', 'Cuenta creada. Ahora inicia sesión.', 'success');
+            toggleAuth();
+        } else {
+            if (usuarios[u] && usuarios[u].password === p) {
+                usuarioActual = u;
+                document.getElementById('login-overlay').style.display = 'none';
+                cargarDatosUsuario();
+            } else {
+                Swal.fire('Error', 'Credenciales inválidas', 'error');
+            }
+        }
+    }
+
+    function cargarDatosUsuario() {
+        const datos = localStorage.getItem("figuritas_" + usuarioActual);
+        if (datos) {
+            figuritas = JSON.parse(datos);
+        } else {
+            inicializar(); 
+        }
+        renderMejorado(); // Esta es TU función original
+    }
+
+    // SOBREESCRITURA SUTIL (Para que guarde por usuario sin borrar tu código)
+    const originalRenderMejorado = renderMejorado;
+    renderMejorado = function() {
+        originalRenderMejorado();
+        if (usuarioActual) {
+            localStorage.setItem("figuritas_" + usuarioActual, JSON.stringify(figuritas));
+        }
+    };
+</script>
+    
+<style>
+    /* Estilos extra solo para el login */
+    @keyframes shake {
+        0% { transform: translateX(0); }
+        25% { transform: translateX(5px); }
+        50% { transform: translateX(-5px); }
+        75% { transform: translateX(5px); }
+        100% { transform: translateX(0); }
+    }
+   /* Forzamos a SweetAlert a estar por encima del login */
+    .swal2-container {
+        z-index: 10000 !important;
+    }
+
+</style>
+<!-- FIN DEL INICIO DE SESIÓN -->
+
 <header>
     <div>MI LISTA MUNDIALISTA</div>
     <nav>
