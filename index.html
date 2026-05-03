@@ -495,35 +495,38 @@
     doc.text(`FALTAN: ${faltanCount}`, 140, y + 14);
     y += 35;
 
-    // SECCIÓN FALTANTES - Lógica blindada
+    // --- SECCIÓN FALTANTES ---
     doc.setFontSize(16);
     doc.setTextColor(220, 20, 20);
     doc.text("DETALLE DE FALTANTES", 15, y);
     y += 10;
 
-    // Usamos un array de códigos limpio para asegurar el recorrido
     const listaCodigos = ["FWC","MEX","RSA","KOR","CZE","CAN","BIH","QAT","SUI","BRA","MAR","HAI","SCO","USA","PAR","AUS","TUR","GER","CUW","CIV","ECU","NED","JPN","SWE","TUN","BEL","EGY","IRN","NZL","ESP","CPV","KSA","URU","FRA","SEN","IRQ","NOR","ARG","ALG","AUT","JOR","POR","COD","UZB","COL","ENG","CRO","GHA","PAN"];
 
-    listaCodigos.forEach(codigoPais => {
-        const faltantesPais = figuritas.filter(f => f.codigo === codigoPais && f.estado === "faltan");
+    for (const codigoActual of listaCodigos) {
+        // Forzamos la comparación a String y Mayúsculas para que no haya error
+        const faltantesDelPais = figuritas.filter(f => 
+            f.codigo.toString().toUpperCase().trim() === codigoActual.toString().toUpperCase().trim() && 
+            f.estado === "faltan"
+        );
         
-        if (faltantesPais.length > 0) {
-            const numeros = faltantesPais.map(f => f.id.split(' ')[1]).join(", ");
-            const textoLinea = `${codigoPais}: ${numeros}`;
+        if (faltantesDelPais.length > 0) {
+            const numeros = faltantesDelPais.map(f => f.id.split(' ')[1]).join(", ");
+            const textoLinea = `${codigoActual}: ${numeros}`;
             
             const lineasADibujar = doc.splitTextToSize(textoLinea, 180);
             doc.setFontSize(9);
             doc.setTextColor(0);
 
-            lineasADibujar.forEach(linea => {
+            for (const linea of lineasADibujar) {
                 if (y > 275) { doc.addPage(); y = 20; }
                 doc.text(linea, 15, y);
                 y += 6;
-            });
+            }
         }
-    });
+    }
 
-    // SECCIÓN REPETIDAS
+    // --- SECCIÓN REPETIDAS ---
     y += 10;
     if (y > 250) { doc.addPage(); y = 20; }
     doc.setFontSize(16);
@@ -531,24 +534,27 @@
     doc.text("MIS REPETIDAS", 15, y);
     y += 10;
 
-    listaCodigos.forEach(codigoPais => {
-        const repesPais = figuritas.filter(f => f.codigo === codigoPais && f.cantidad > 0);
+    for (const codigoActual of listaCodigos) {
+        const repesDelPais = figuritas.filter(f => 
+            f.codigo.toString().toUpperCase().trim() === codigoActual.toString().toUpperCase().trim() && 
+            f.cantidad > 0
+        );
         
-        if (repesPais.length > 0) {
-            const numRepes = repesPais.map(f => `${f.id.split(' ')[1]}(x${f.cantidad})`).join(", ");
-            const textoRepe = `${codigoPais}: ${numRepes}`;
+        if (repesDelPais.length > 0) {
+            const numRepes = repesDelPais.map(f => `${f.id.split(' ')[1]}(x${f.cantidad})`).join(", ");
+            const textoRepe = `${codigoActual}: ${numRepes}`;
             const lineasRepes = doc.splitTextToSize(textoRepe, 180);
             
             doc.setFontSize(9);
             doc.setTextColor(0);
 
-            lineasRepes.forEach(l => {
+            for (const l of lineasRepes) {
                 if (y > 275) { doc.addPage(); y = 20; }
                 doc.text(l, 15, y);
                 y += 6;
-            });
+            }
         }
-    });
+    }
 
     doc.save(`${tituloUsuario.replace(/\s+/g, '_')}.pdf`);
 }
