@@ -3,6 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <title>Álbum Mundial - Gestión Pro</title>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;700&display=swap" rel="stylesheet">
 
@@ -39,7 +41,7 @@
         .tengo { background: #4CAF50; color: white; }
         .repetidas { background: #FFC107; color: #333; }
         .faltan { background: #F44336; color: white; }
-
+        .pdf { background: #ffffff; color: #ff0000; }
         /* --- FONDO DINÁMICO --- */
         main {
             padding: 20px;
@@ -143,12 +145,13 @@
 <body>
 
 <header>
-    <div>ALBUM VIRTUAL</div>
+    <div>MI LISTA MUNDIALISTA</div>
     <nav>
         <button class="todas" onclick="mostrar('todas')">Todas</button>
         <button class="tengo" onclick="mostrar('tengo')">Pegadas</button>
         <button class="repetidas" onclick="mostrar('repetidas')">Repetidas</button>
         <button class="faltan" onclick="mostrar('faltan')">Faltan</button>
+        <button class="pdf" onclick="generarPDF()">Descargar PDF</button>
     </nav>
 </header>
 
@@ -210,27 +213,52 @@
 
     function crearBloquePais(codigo) {
         const div = document.createElement("div");
-        // Se cambia div.id por un atributo de datos para evitar IDs duplicados en el DOM
-        div.setAttribute("data-pais", codigo); 
+        div.setAttribute("data-pais", codigo); // Esto es lo que permite que el buscador lo encuentre
         div.innerHTML = `<h3>${codigo}</h3><div class="grid-figuritas"></div>`;
         return { div, grid: div.querySelector(".grid-figuritas") };
     }
 
+    // 2. Reemplazá tu función buscarPais por esta
     function buscarPais() {
-        const filtro = document.getElementById("busqueda").value.trim().toUpperCase();
+        const inputBusqueda = document.getElementById("busqueda");
+        const filtro = inputBusqueda.value.trim().toUpperCase();
+        
+        // Buscamos el país SOLO dentro de la pestaña que tenés abierta ahora
         const seccionActual = document.getElementById(vistaActual);
-        // Ahora busca por el atributo de datos dentro de la sección que el usuario está viendo
         const bloque = seccionActual.querySelector(`[data-pais="${filtro}"]`);
 
         if (bloque) {
-            bloque.scrollIntoView({ behavior: "smooth", block: "center" });
+            // El scrollIntoView a veces falla en celular si no tiene estos parámetros:
+            bloque.scrollIntoView({ 
+                behavior: "smooth", 
+                block: "center",
+                inline: "nearest" 
+            });
+
+            // Feedback visual: resaltamos el título para que sepas que lo encontró
             const titulo = bloque.querySelector("h3");
-            titulo.style.transition = "color 0.3s";
-            titulo.style.color = "yellow";
-            setTimeout(() => titulo.style.color = "", 2000);
+            titulo.style.transition = "all 0.3s";
+            titulo.style.color = "#FFD700"; // Color Oro
+            titulo.style.textShadow = "0 0 10px gold";
+            
+            setTimeout(() => {
+                titulo.style.color = "";
+                titulo.style.textShadow = "";
+            }, 2500);
+
+            // Cerramos el teclado en celulares
+            inputBusqueda.blur(); 
         } else {
-            alert("El país no tiene figuritas en esta sección.");
-        }
+        Swal.fire({
+        title: '¡País no encontrado!',
+        text: `No hay figuritas de "${filtro}" en la sección ${vistaActual}`,
+        icon: 'error',
+        confirmButtonText: 'Entendido',
+        confirmButtonColor: '#2196F3',
+        background: '#1a1a1a',
+        color: '#ffffff'
+    });
+}
     }
 
     document.getElementById("busqueda").addEventListener("keydown", e => {
@@ -418,6 +446,69 @@
     const guardado = localStorage.getItem("figuritas");
     if (guardado) figuritas = JSON.parse(guardado);
     else inicializar();
+
+    async function generarPDF() {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    let y = 20; // Posición vertical inicial
+
+    // Configuración de título
+    doc.setFontSize(22);
+    doc.setTextColor(33, 150, 243); // Azul
+    doc.text("REPORTE DE ÁLBUM MUNDIAL", 105, y, { align: "center" });
+    
+    y += 15;
+    doc.setFontSize(12);
+    doc.setTextColor(100);
+    doc.text(`Generado el: ${new Date().toLocaleDateString()}`, 105, y, { align: "center" });
+
+    // --- SECCIÓN: FIGURITAS QUE FALTAN ---
+    y += 20;
+    doc.setFontSize(16);
+    doc.setTextColor(244, 67, 54); // Rojo
+    doc.text(" FIGURITAS QUE ME FALTAN", 10, y);
+    y += 10;
+    doc.setFontSize(10);
+    doc.setTextColor(0);
+
+    codigos.forEach(pais => {
+        const faltantes = figuritas.filter(f => f.codigo === pais && f.estado === "faltan");
+        if (faltantes.length > 0) {
+            const lista = faltantes.map(f => f.id.split(' ')[1]).join(", ");
+            const texto = `${pais}: ${lista}`;
+            
+            // Control de salto de página
+            if (y > 270) { doc.addPage(); y = 20; }
+            doc.text(texto, 15, y);
+            y += 7;
+        }
+    });
+
+    // --- SECCIÓN: FIGURITAS REPETIDAS ---
+    y += 15;
+    if (y > 270) { doc.addPage(); y = 20; }
+    doc.setFontSize(16);
+    doc.setTextColor(76, 175, 80); // Verde
+    doc.text("✅ REPETIDAS PARA CAMBIO", 10, y);
+    y += 10;
+    doc.setFontSize(10);
+    doc.setTextColor(0);
+
+    codigos.forEach(pais => {
+        const repes = figuritas.filter(f => f.codigo === pais && f.cantidad > 0);
+        if (repes.length > 0) {
+            const lista = repes.map(f => `${f.id.split(' ')[1]} (x${f.cantidad})`).join(", ");
+            const texto = `${pais}: ${lista}`;
+
+            if (y > 270) { doc.addPage(); y = 20; }
+            doc.text(texto, 15, y);
+            y += 7;
+        }
+    });
+
+    // Guardar el archivo
+    doc.save("Mi_Progreso_Album.pdf");
+}
 
     renderMejorado();
     mostrar("todas");
