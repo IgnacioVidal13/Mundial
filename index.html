@@ -166,6 +166,9 @@
     <div class="busqueda-container">
         <input type="text" id="busqueda" placeholder="Código de país (ej: ARG)...">
         <button id="btnBuscar" onclick="buscarPais()">Buscar</button>
+        <button onclick="activarVoz()" style="background: #FF5722; color: white; border-radius: 50%; width: 50px; height: 50px; border: none; cursor: pointer;">
+    🎤
+</button>
     </div>
 
     <section id="todas"></section>
@@ -515,6 +518,123 @@
 
     renderMejorado();
     mostrar("todas");
+
+    // 1. Configuración de la IA con Diccionario Global
+const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+recognition.lang = 'es-AR'; 
+recognition.continuous = true; 
+recognition.interimResults = false;
+
+// Diccionario extendido (podés seguir agregando más países aquí)
+const diccionarioPaises = {
+    "argentina": "ARG", "catar": "QAT", "españa": "ESP", "francia": "FRA",
+    "alemania": "GER", "brasil": "BRA", "belgica": "BEL", "portugal": "POR",
+    "inglaterra": "ENG", "holanda": "NED", "paises bajos": "NED", "uruguay": "URU",
+    "croacia": "CRO", "dinamarca": "DEN", "mexico": "MEX", "polonia": "POL",
+    "tunez": "TUN", "arabia": "KSA", "australia": "AUS", "japon": "JPN",
+    "costa rica": "CRC", "marruecos": "MAR", "canada": "CAN", "suiza": "SUI",
+    "serbia": "SRB", "camerun": "CMR", "ghana": "GHA", "corea": "KOR", "senegal": "SEN"
+};
+
+function activarVoz() {
+    try {
+        recognition.start();
+        Swal.fire({
+            title: 'Escuchando...',
+            text: 'Decí: "Cambiar Argentina 10 por Francia 5"',
+            icon: 'info',
+            showConfirmButton: false,
+            timer: 2000,
+            toast: true,
+            position: 'top'
+        });
+    } catch (e) { console.log("Micro ya activo"); }
+}
+
+recognition.onresult = (event) => {
+    const vozOriginal = event.results[event.results.length - 1][0].transcript.toLowerCase();
+    
+    // MOSTRAR LO QUE ENTENDIÓ (Feedback visual)
+    Swal.fire({
+        title: 'Escuché esto:',
+        text: `"${vozOriginal}"`,
+        icon: 'success',
+        toast: true,
+        position: 'bottom',
+        timer: 3000,
+        showConfirmButton: false
+    });
+
+    console.log("IA escuchó:", vozOriginal);
+
+    // Procesamos la frase
+    const frase = vozOriginal.replace("por", "|");
+    const partes = frase.split("|");
+
+    if (partes.length >= 2) {
+        const p1 = extraerDatosPro(partes[0]);
+        const p2 = extraerDatosPro(partes[1]);
+
+        if (p1 && p2) {
+            ejecutarCambioVoz(p1.cod, p1.num, p2.cod, p2.num);
+            recognition.stop();
+        }
+    }
+};
+
+// Función "Cerebro" que busca códigos o nombres de países
+function extraerDatosPro(texto) {
+    let codigoEncontrado = null;
+    let numeroEncontrado = null;
+
+    // 1. Buscar el número
+    const numMatch = texto.match(/\d+/);
+    if (numMatch) numeroEncontrado = parseInt(numMatch[0]);
+
+    // 2. Buscar si dijo el nombre del país (del diccionario)
+    for (let nombre in diccionarioPaises) {
+        if (texto.includes(nombre)) {
+            codigoEncontrado = diccionarioPaises[nombre];
+            break;
+        }
+    }
+
+    // 3. Si no dijo el nombre, buscar un código de 3 letras (como ARG)
+    if (!codigoEncontrado) {
+        const codMatch = texto.match(/[a-z]{3}/i);
+        if (codMatch) codigoEncontrado = codMatch[0].toUpperCase();
+    }
+
+    if (codigoEncontrado && numeroEncontrado !== null) {
+        return { cod: codigoEncontrado, num: numeroEncontrado };
+    }
+    return null;
+}
+
+function ejecutarCambioVoz(p1, n1, p2, n2) {
+    const figuDoy = figuritas.find(f => f.codigo === p1 && parseInt(f.id.split(' ')[1]) === n1);
+    const figuRecibo = figuritas.find(f => f.codigo === p2 && parseInt(f.id.split(' ')[1]) === n2);
+
+    if (figuDoy && figuRecibo) {
+        if (figuDoy.estado === "tengo") {
+            if (figuDoy.cantidad > 0) figuDoy.cantidad--;
+            else figuDoy.estado = "faltan";
+
+            figuRecibo.estado = "tengo";
+            renderMejorado(); // O el nombre de tu función de actualización
+            
+            Swal.fire({
+                title: '¡Cambio Exitoso!',
+                text: `Salió ${p1} ${n1} -> Entró ${p2} ${n2}`,
+                icon: 'success'
+            });
+        } else {
+            Swal.fire('Error', `No tenés a ${p1} ${n1} para dar`, 'error');
+        }
+    } else {
+        Swal.fire('No entiendo', `Revisá si ${p1} o ${p2} son correctos`, 'warning');
+    }
+}
 </script>
 
 </body>
