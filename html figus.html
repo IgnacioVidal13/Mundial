@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <title>Álbum Mundial</title>
 
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;700&display=swap" rel="stylesheet">
 
 <style>
@@ -171,6 +173,79 @@ display: inline-block;
 }
 .resaltado {
 background-color: rgba(167, 167, 40, 0.737);
+}
+/* =========================
+   RESPONSIVE MOBILE FULL
+   ========================= */
+@media (max-width: 768px) {
+
+  /* HEADER */
+  header {
+    flex-direction: column;
+    gap: 10px;
+    text-align: center;
+  }
+
+  nav {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px;
+  }
+
+  nav button {
+    margin-left: 0;
+    font-size: 12px;
+    padding: 6px 8px;
+    min-height: 36px;
+  }
+
+  /* MAIN TEXTOS */
+  #contador {
+    font-size: 14px;
+  }
+
+  h3 {
+    font-size: 14px;
+  }
+
+  /* BUSCADOR */
+  #busqueda {
+    width: 90%;
+    font-size: 14px;
+  }
+
+  /* GRID FIGURITAS */
+  .figurita {
+    width: 48px;
+    height: 48px;
+    font-size: 9px;
+  }
+
+  .grid-figuritas {
+    gap: 6px;
+  }
+
+  /* BARRA PROGRESO */
+  #barra-container {
+    height: 30px;
+  }
+
+  #copa {
+    width: 40px;
+    transform: translate(-50%, 10%) rotate(90deg);
+  }
+
+  /* OPTIMIZACIÓN GENERAL UX */
+  button {
+    min-height: 36px;
+  }
+
+  html, body {
+    height: 100%;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+  }
 }
 </style>
 </head>
@@ -408,7 +483,6 @@ function render() {
 }
 
 
-localStorage.removeItem("figuritas");
 const guardado = localStorage.getItem("figuritas");
 if (guardado) figuritas = JSON.parse(guardado);
 else inicializar();
