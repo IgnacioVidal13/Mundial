@@ -451,69 +451,105 @@
     else inicializar();
 
     async function generarPDF() {
+    // 1. Pedir el título personalizado con botones de colores específicos
+    const { value: tituloUsuario } = await Swal.fire({
+        title: 'Título del PDF',
+        input: 'text',
+        inputLabel: 'Escribí tu nombre',
+        inputValue: '',
+        showCancelButton: true,
+        confirmButtonText: 'OK',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#007bff', // Azul
+        cancelButtonColor: '#dc3545',  // Rojo
+        background: '#1a1a1a',
+        color: '#ffffff'
+    });
+
+    if (!tituloUsuario) return;
+
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
     let y = 20;
 
-    // Configuración inicial
-    doc.setFontSize(18);
-    doc.setTextColor(33, 150, 243);
-    doc.text("REPORTE DE ÁLBUM", 105, y, { align: "center" });
+    // Cálculo de Estadísticas
+    const totalFigus = figuritas.length;
+    const tengo = figuritas.filter(f => f.estado === "tengo").length;
+    const faltanTotal = totalFigus - tengo;
+    const porcentaje = ((tengo / totalFigus) * 100).toFixed(1);
+
+    // Encabezado Principal
+    doc.setFontSize(22);
+    doc.setTextColor(255, 87, 34); 
+    doc.text(tituloUsuario.toUpperCase(), 105, y, { align: "center" });
+    y += 15;
+
+    // Cuadro de Resumen
+    doc.setDrawColor(200);
+    doc.setFillColor(245, 245, 245);
+    doc.rect(15, y, 180, 25, 'F');
     
-    y += 15;
-    doc.setFontSize(10);
-    doc.setTextColor(100);
-    doc.text(`Fecha: ${new Date().toLocaleDateString()}`, 105, y, { align: "center" });
-
-    // --- SECCIÓN: FALTANTES ---
-    y += 15;
-    doc.setFontSize(14);
+    doc.setFontSize(11);
+    doc.setTextColor(50);
+    // REEMPLAZO SOLICITADO: "Álbum de:"
+    doc.text(`Álbum de: ${tituloUsuario}`, 25, y + 10);
+    doc.text(`Progreso: ${porcentaje}% (${tengo}/${totalFigus})`, 25, y + 18);
+    
     doc.setTextColor(244, 67, 54);
-    doc.text("NECESITO:", 10, y);
-    y += 8;
-    doc.setFontSize(12);
-    doc.setTextColor(0);
+    doc.setFont("helvetica", "bold");
+    doc.text(`FALTAN: ${faltanTotal}`, 130, y + 15);
+    doc.setFont("helvetica", "normal");
+    
+    y += 35;
 
-    codigos.forEach(c => {
-        // Filtramos las que faltan para este país
+    // SECCIÓN FALTANTES
+    doc.setFontSize(16);
+    doc.setTextColor(244, 67, 54);
+    doc.text("DETALLE POR PAÍS (FALTANTES)", 15, y);
+    y += 10;
+
+    for (const c of codigos) {
         const faltan = figuritas.filter(f => f.codigo === c && f.estado === "faltan");
-        
         if (faltan.length > 0) {
-            // Obtenemos solo el número (la parte después del espacio)
             const numeros = faltan.map(f => f.id.split(" ")[1]).join(", ");
             const linea = `${c}: ${numeros}`;
-            
-            // Si nos pasamos del largo de la hoja, creamos otra
-            if (y > 275) { doc.addPage(); y = 20; }
-            doc.text(linea, 15, y);
-            y += 6;
+            const lineasDivididas = doc.splitTextToSize(linea, 180);
+            for (const l of lineasDivididas) {
+                if (y > 275) { doc.addPage(); y = 20; }
+                doc.setFontSize(9);
+                doc.setTextColor(0);
+                doc.text(l, 15, y);
+                y += 6;
+            }
         }
-    });
+    }
 
-    // --- SECCIÓN: REPETIDAS ---
-    y += 12;
-    if (y > 275) { doc.addPage(); y = 20; }
-    doc.setFontSize(14);
+    // SECCIÓN REPETIDAS
+    y += 10;
+    if (y > 250) { doc.addPage(); y = 20; }
+    
+    doc.setFontSize(16);
     doc.setTextColor(76, 175, 80);
-    doc.text("MIS REPETIDAS:", 10, y);
-    y += 8;
-    doc.setFontSize(12);
-    doc.setTextColor(0);
+    doc.text("MIS REPETIDAS", 15, y);
+    y += 10;
 
-    codigos.forEach(c => {
+    for (const c of codigos) {
         const repes = figuritas.filter(f => f.codigo === c && f.cantidad > 0);
-        
         if (repes.length > 0) {
             const numerosRepes = repes.map(f => `${f.id.split(" ")[1]} (x${f.cantidad})`).join(", ");
             const lineaRepes = `${c}: ${numerosRepes}`;
-
-            if (y > 275) { doc.addPage(); y = 20; }
-            doc.text(lineaRepes, 15, y);
-            y += 6;
+            const lineasDivididas = doc.splitTextToSize(lineaRepes, 180);
+            for (const l of lineasDivididas) {
+                if (y > 275) { doc.addPage(); y = 20; }
+                doc.setFontSize(9);
+                doc.setTextColor(0);
+                doc.text(l, 15, y);
+                y += 6;
+            }
         }
-    });
+    }
 
-    doc.save("Mi_Album_Mundial.pdf");
+    doc.save(`${tituloUsuario.replace(/ /g, "_")}.pdf`);
 }
 
     renderMejorado();
@@ -525,49 +561,46 @@ recognition.lang = 'es-AR';
 recognition.continuous = true; 
 recognition.interimResults = false;
 
-// Diccionario extendido (podés seguir agregando más países aquí)
 const diccionarioPaises = {
-    "argentina": "ARG", "catar": "QAT", "españa": "ESP", "francia": "FRA",
-    "alemania": "GER", "brasil": "BRA", "belgica": "BEL", "portugal": "POR",
-    "inglaterra": "ENG", "holanda": "NED", "paises bajos": "NED", "uruguay": "URU",
-    "croacia": "CRO", "dinamarca": "DEN", "mexico": "MEX", "polonia": "POL",
-    "tunez": "TUN", "arabia": "KSA", "australia": "AUS", "japon": "JPN",
-    "costa rica": "CRC", "marruecos": "MAR", "canada": "CAN", "suiza": "SUI",
-    "serbia": "SRB", "camerun": "CMR", "ghana": "GHA", "corea": "KOR", "senegal": "SEN"
+    "mundial": "FWC", "trofeo": "FWC", "méxico": "MEX", "mexico": "MEX", "sudáfrica": "RSA", 
+    "sudafrica": "RSA", "corea": "KOR", "checa": "CZE", "república checa": "CZE", "canadá": "CAN", 
+    "canada": "CAN", "bosnia": "BIH", "catar": "QAT", "qatar": "QAT", "suiza": "SUI", "brasil": "BRA", 
+    "marruecos": "MAR", "haití": "HAI", "haiti": "HAI", "escocia": "SCO", "estados unidos": "USA", 
+    "usa": "USA", "paraguay": "PAR", "australia": "AUS", "turquía": "TUR", "turquia": "TUR", 
+    "alemania": "GER", "curazao": "CUW", "costa de marfil": "CIV", "ecuador": "ECU", "holanda": "NED", 
+    "países bajos": "NED", "paises bajos": "NED", "japón": "JPN", "japon": "JPN", "suecia": "SWE", 
+    "túnez": "TUN", "tunez": "TUN", "bélgica": "BEL", "belgica": "BEL", "egipto": "EGY", "irán": "IRN", 
+    "iran": "IRN", "nueva zelanda": "NZL", "españa": "ESP", "cabo verde": "CPV", "arabia": "KSA", 
+    "uruguay": "URU", "francia": "FRA", "senegal": "SEN", "irak": "IRQ", "iraq": "IRQ", "noruega": "NOR", 
+    "argentina": "ARG", "argelia": "ALG", "austria": "AUT", "jordania": "JOR", "portugal": "POR", 
+    "congo": "COD", "uzbekistán": "UZB", "uzbekistan": "UZB", "colombia": "COL", "inglaterra": "ENG", 
+    "croacia": "CRO", "ghana": "GHA", "panamá": "PAN", "panama": "PAN"
 };
+
+let timerSeguridad;
 
 function activarVoz() {
     try {
         recognition.start();
-        Swal.fire({
-            title: 'Escuchando...',
-            text: 'Decí: "Cambiar Argentina 10 por Francia 5"',
-            icon: 'info',
-            showConfirmButton: false,
-            timer: 2000,
-            toast: true,
-            position: 'top'
-        });
+        clearTimeout(timerSeguridad);
+
+        // CORTE DE SEGURIDAD 10 SEG
+        timerSeguridad = setTimeout(() => {
+            recognition.stop();
+            Swal.fire({ title: 'Micrófono apagado', icon: 'warning', toast: true, position: 'top-end', timer: 2000, showConfirmButton: false });
+        }, 10000);
+
+        Swal.fire({ title: 'Escuchando...', icon: 'info', showConfirmButton: false, timer: 1500, toast: true, position: 'top' });
     } catch (e) { console.log("Micro ya activo"); }
 }
 
+// 2. PROCESAMIENTO DE VOZ
 recognition.onresult = (event) => {
     const vozOriginal = event.results[event.results.length - 1][0].transcript.toLowerCase();
     
-    // MOSTRAR LO QUE ENTENDIÓ (Feedback visual)
-    Swal.fire({
-        title: 'Escuché esto:',
-        text: `"${vozOriginal}"`,
-        icon: 'success',
-        toast: true,
-        position: 'bottom',
-        timer: 3000,
-        showConfirmButton: false
-    });
+    // Mostramos qué entendió
+    Swal.fire({ title: 'Entendido:', text: `"${vozOriginal}"`, icon: 'success', toast: true, position: 'bottom', timer: 2000, showConfirmButton: false });
 
-    console.log("IA escuchó:", vozOriginal);
-
-    // Procesamos la frase
     const frase = vozOriginal.replace("por", "|");
     const partes = frase.split("|");
 
@@ -577,43 +610,73 @@ recognition.onresult = (event) => {
 
         if (p1 && p2) {
             ejecutarCambioVoz(p1.cod, p1.num, p2.cod, p2.num);
+            clearTimeout(timerSeguridad);
             recognition.stop();
         }
     }
 };
 
-// Función "Cerebro" que busca códigos o nombres de países
 function extraerDatosPro(texto) {
-    let codigoEncontrado = null;
-    let numeroEncontrado = null;
+    let cod = null;
+    let num = null;
 
-    // 1. Buscar el número
-    const numMatch = texto.match(/\d+/);
-    if (numMatch) numeroEncontrado = parseInt(numMatch[0]);
+    // 1. Limpiamos el texto para separar letras de números (ej: "fw05" -> "fw 05")
+    const textoLimpio = texto.replace(/([a-z]+)(\d+)/i, '$1 $2');
+    
+    // 2. Extraer el número
+    const nMatch = textoLimpio.match(/\d+/);
+    if (nMatch) num = parseInt(nMatch[0]);
 
-    // 2. Buscar si dijo el nombre del país (del diccionario)
+    // 3. Diccionario de "Abreviaturas rápidas" que el mic suele confundir
+    const abreviaturas = {
+        "fw": "FWC",
+        "mx": "MEX",
+        "ar": "ARG",
+        "br": "BRA"
+    };
+
+    // 4. Buscar en el diccionario principal de países
     for (let nombre in diccionarioPaises) {
-        if (texto.includes(nombre)) {
-            codigoEncontrado = diccionarioPaises[nombre];
-            break;
+        if (textoLimpio.includes(nombre)) { 
+            cod = diccionarioPaises[nombre]; 
+            break; 
         }
     }
 
-    // 3. Si no dijo el nombre, buscar un código de 3 letras (como ARG)
-    if (!codigoEncontrado) {
-        const codMatch = texto.match(/[a-z]{3}/i);
-        if (codMatch) codigoEncontrado = codMatch[0].toUpperCase();
+    // 5. Si no lo encontró, ver si es una abreviatura de 2 letras (como tu imagen)
+    if (!cod) {
+        for (let abrev in abreviaturas) {
+            if (textoLimpio.includes(abrev)) {
+                cod = abreviaturas[abrev];
+                break;
+            }
+        }
     }
 
-    if (codigoEncontrado && numeroEncontrado !== null) {
-        return { cod: codigoEncontrado, num: numeroEncontrado };
+    // 6. Si sigue sin aparecer, buscar cualquier código de 3 letras
+    if (!cod) {
+        const cMatch = textoLimpio.match(/[a-z]{3}/i);
+        if (cMatch) cod = cMatch[0].toUpperCase();
     }
-    return null;
+
+    return (cod && num !== null) ? { cod, num } : null;
 }
 
+// ESTA FUNCIÓN TAMBIÉN CAMBIA PARA SER MÁS FLEXIBLE
 function ejecutarCambioVoz(p1, n1, p2, n2) {
-    const figuDoy = figuritas.find(f => f.codigo === p1 && parseInt(f.id.split(' ')[1]) === n1);
-    const figuRecibo = figuritas.find(f => f.codigo === p2 && parseInt(f.id.split(' ')[1]) === n2);
+    const pais1 = p1.toUpperCase().trim();
+    const pais2 = p2.toUpperCase().trim();
+
+    // Buscamos la figu asegurando que el ID coincida con el formato "COD NUM" (con espacio)
+    const figuDoy = figuritas.find(f => {
+        const partesId = f.id.split(' ');
+        return f.codigo.toUpperCase() === pais1 && parseInt(partesId[1]) === n1;
+    });
+
+    const figuRecibo = figuritas.find(f => {
+        const partesId = f.id.split(' ');
+        return f.codigo.toUpperCase() === pais2 && parseInt(partesId[1]) === n2;
+    });
 
     if (figuDoy && figuRecibo) {
         if (figuDoy.estado === "tengo") {
@@ -621,20 +684,30 @@ function ejecutarCambioVoz(p1, n1, p2, n2) {
             else figuDoy.estado = "faltan";
 
             figuRecibo.estado = "tengo";
-            renderMejorado(); // O el nombre de tu función de actualización
             
-            Swal.fire({
-                title: '¡Cambio Exitoso!',
-                text: `Salió ${p1} ${n1} -> Entró ${p2} ${n2}`,
-                icon: 'success'
+            renderMejorado(); 
+            if(typeof guardarDatos === "function") guardarDatos();
+
+            Swal.fire({ 
+                title: '¡Cambio Exitoso!', 
+                text: `${pais1} ${n1} → ${pais2} ${n2}`, 
+                icon: 'success',
+                background: '#1a1a1a',
+                color: '#ffffff'
             });
         } else {
-            Swal.fire('Error', `No tenés a ${p1} ${n1} para dar`, 'error');
+            Swal.fire('Error', `No tenés a ${pais1} ${n1}`, 'error');
         }
     } else {
-        Swal.fire('No entiendo', `Revisá si ${p1} o ${p2} son correctos`, 'warning');
+        // Si no las encuentra, te avisa qué códigos intentó usar para que corrijas
+        Swal.fire({
+            title: 'No encontré las figuritas',
+            text: `Buscando: ${pais1} ${n1} y ${pais2} ${n2}`,
+            icon: 'warning'
+        });
     }
 }
+
 </script>
 
 </body>
