@@ -450,64 +450,67 @@
     async function generarPDF() {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
-    let y = 20; // Posición vertical inicial
+    let y = 20;
 
-    // Configuración de título
-    doc.setFontSize(22);
-    doc.setTextColor(33, 150, 243); // Azul
-    doc.text("REPORTE DE ÁLBUM MUNDIAL", 105, y, { align: "center" });
+    // Configuración inicial
+    doc.setFontSize(18);
+    doc.setTextColor(33, 150, 243);
+    doc.text("REPORTE DE ÁLBUM", 105, y, { align: "center" });
     
     y += 15;
-    doc.setFontSize(12);
+    doc.setFontSize(10);
     doc.setTextColor(100);
-    doc.text(`Generado el: ${new Date().toLocaleDateString()}`, 105, y, { align: "center" });
+    doc.text(`Fecha: ${new Date().toLocaleDateString()}`, 105, y, { align: "center" });
 
-    // --- SECCIÓN: FIGURITAS QUE FALTAN ---
-    y += 20;
-    doc.setFontSize(16);
-    doc.setTextColor(244, 67, 54); // Rojo
-    doc.text(" FIGURITAS QUE ME FALTAN", 10, y);
-    y += 10;
-    doc.setFontSize(10);
-    doc.setTextColor(0);
-
-    codigos.forEach(pais => {
-        const faltantes = figuritas.filter(f => f.codigo === pais && f.estado === "faltan");
-        if (faltantes.length > 0) {
-            const lista = faltantes.map(f => f.id.split(' ')[1]).join(", ");
-            const texto = `${pais}: ${lista}`;
-            
-            // Control de salto de página
-            if (y > 270) { doc.addPage(); y = 20; }
-            doc.text(texto, 15, y);
-            y += 7;
-        }
-    });
-
-    // --- SECCIÓN: FIGURITAS REPETIDAS ---
+    // --- SECCIÓN: FALTANTES ---
     y += 15;
-    if (y > 270) { doc.addPage(); y = 20; }
-    doc.setFontSize(16);
-    doc.setTextColor(76, 175, 80); // Verde
-    doc.text("✅ REPETIDAS PARA CAMBIO", 10, y);
-    y += 10;
-    doc.setFontSize(10);
+    doc.setFontSize(14);
+    doc.setTextColor(244, 67, 54);
+    doc.text("NECESITO:", 10, y);
+    y += 8;
+    doc.setFontSize(12);
     doc.setTextColor(0);
 
-    codigos.forEach(pais => {
-        const repes = figuritas.filter(f => f.codigo === pais && f.cantidad > 0);
-        if (repes.length > 0) {
-            const lista = repes.map(f => `${f.id.split(' ')[1]} (x${f.cantidad})`).join(", ");
-            const texto = `${pais}: ${lista}`;
-
-            if (y > 270) { doc.addPage(); y = 20; }
-            doc.text(texto, 15, y);
-            y += 7;
+    codigos.forEach(c => {
+        // Filtramos las que faltan para este país
+        const faltan = figuritas.filter(f => f.codigo === c && f.estado === "faltan");
+        
+        if (faltan.length > 0) {
+            // Obtenemos solo el número (la parte después del espacio)
+            const numeros = faltan.map(f => f.id.split(" ")[1]).join(", ");
+            const linea = `${c}: ${numeros}`;
+            
+            // Si nos pasamos del largo de la hoja, creamos otra
+            if (y > 275) { doc.addPage(); y = 20; }
+            doc.text(linea, 15, y);
+            y += 6;
         }
     });
 
-    // Guardar el archivo
-    doc.save("Mi_Progreso_Album.pdf");
+    // --- SECCIÓN: REPETIDAS ---
+    y += 12;
+    if (y > 275) { doc.addPage(); y = 20; }
+    doc.setFontSize(14);
+    doc.setTextColor(76, 175, 80);
+    doc.text("MIS REPETIDAS:", 10, y);
+    y += 8;
+    doc.setFontSize(12);
+    doc.setTextColor(0);
+
+    codigos.forEach(c => {
+        const repes = figuritas.filter(f => f.codigo === c && f.cantidad > 0);
+        
+        if (repes.length > 0) {
+            const numerosRepes = repes.map(f => `${f.id.split(" ")[1]} (x${f.cantidad})`).join(", ");
+            const lineaRepes = `${c}: ${numerosRepes}`;
+
+            if (y > 275) { doc.addPage(); y = 20; }
+            doc.text(lineaRepes, 15, y);
+            y += 6;
+        }
+    });
+
+    doc.save("Mi_Album_Mundial.pdf");
 }
 
     renderMejorado();
