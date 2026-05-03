@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Álbum Mundial - Gestión de Figuritas</title>
+    <title>Álbum Mundial - Gestión Pro</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;700&display=swap" rel="stylesheet">
 
@@ -14,7 +14,7 @@
             background: #111;
         }
 
-        /* --- HEADER Y NAVEGACIÓN --- */
+        /* --- HEADER --- */
         header {
             background: #111;
             padding: 15px;
@@ -24,11 +24,7 @@
             border-bottom: 2px solid gold;
         }
 
-        header div {
-            color: gold;
-            font-size: 22px;
-            font-weight: 700;
-        }
+        header div { color: gold; font-size: 22px; font-weight: 700; }
 
         nav button {
             margin-left: 10px;
@@ -37,16 +33,14 @@
             border-radius: 6px;
             cursor: pointer;
             font-weight: bold;
-            transition: opacity 0.2s;
         }
 
-        nav button:hover { opacity: 0.8; }
         .todas { background: #2196F3; color: white; }
         .tengo { background: #4CAF50; color: white; }
         .repetidas { background: #FFC107; color: #333; }
         .faltan { background: #F44336; color: white; }
 
-        /* --- CONTENIDO PRINCIPAL (EFECTO LAVA) --- */
+        /* --- FONDO DINÁMICO --- */
         main {
             padding: 20px;
             min-height: 100vh;
@@ -62,136 +56,95 @@
             100% { background-position: 0% 50%; }
         }
 
-        /* --- BARRA DE PROGRESO Y COPA --- */
-        #contador {
-            margin-bottom: 15px;
-            font-size: 18px;
-            font-weight: bold;
-            text-shadow: 0 0 5px rgba(0,0,0,0.5);
-        }
+        /* --- PROGRESO --- */
+        #contador { margin-bottom: 15px; font-size: 18px; font-weight: bold; text-shadow: 0 0 5px black; }
 
         #barra-container {
-            width: 100%;
-            height: 35px;
-            background: #222;
-            border-radius: 20px;
-            position: relative;
-            margin-bottom: 30px;
+            width: 100%; height: 35px; background: #222;
+            border-radius: 20px; position: relative; margin-bottom: 30px;
         }
 
         #barra {
-            height: 100%;
-            width: 0%;
-            background: linear-gradient(90deg, #d4af37, #ffd700, #d4af37);
-            border-radius: 20px;
-            transition: width 0.5s ease;
+            height: 100%; width: 0%; background: linear-gradient(90deg, #d4af37, #ffd700, #d4af37);
+            border-radius: 20px; transition: width 0.5s ease;
         }
 
         #copa {
-            position: absolute;
-            top: 50%;
-            left: 0;
-            width: 50px;
+            position: absolute; top: 50%; left: 0; width: 50px;
             transform: translate(-50%, -50%) rotate(90deg);
-            transition: left 0.5s ease;
-            pointer-events: none
+            transition: left 0.5s ease; pointer-events: none;
         }
 
         #copa.completo { filter: drop-shadow(0 0 10px gold); }
 
-        /* --- BUSCADOR (CORREGIDO SEGÚN IMAGEN) --- */
+        /* --- BUSCADOR --- */
         .busqueda-container {
-            display: flex;
-            justify-content: center;
-            align-items: stretch;
-            margin: 30px auto;
-            max-width: 500px;
+            display: flex; justify-content: center; align-items: stretch;
+            margin: 30px auto; max-width: 500px;
         }
 
         #busqueda {
-            flex: 1;
-            padding: 12px 15px;
-            border: 1px solid #ccc;
-            border-right: none;
-            border-radius: 4px 0 0 4px;
-            font-family: inherit;
-            outline: none;
-            box-sizing: border-box;
-            font-size: 16px;
+            flex: 1; padding: 12px 15px; border: 1px solid #ccc;
+            border-right: none; border-radius: 4px 0 0 4px;
+            outline: none; font-size: 16px; font-family: inherit;
         }
 
         #btnBuscar {
-            padding: 12px 25px;
-            background: #2196F3;
-            color: white;
-            border: 1px solid #2196F3;
-            border-radius: 0 4px 4px 0;
-            cursor: pointer;
-            font-weight: bold;
-            font-family: inherit;
-            text-transform: uppercase;
-            box-sizing: border-box;
+            padding: 12px 25px; background: #2196F3; color: white;
+            border: 1px solid #2196F3; border-radius: 0 4px 4px 0;
+            cursor: pointer; font-weight: bold; text-transform: uppercase;
         }
 
-        #btnBuscar:hover { background: #1976D2; }
-
-        /* --- GRID Y FIGURITAS --- */
-        .grid-figuritas {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            margin-bottom: 20px;
-        }
+        /* --- FIGURITAS --- */
+        .grid-figuritas { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; }
 
         .figurita {
-            width: 60px;
-            height: 60px;
-            background: white;
-            border: 2px solid #ccc;
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 11px;
-            cursor: pointer;
-            position: relative;
-            color: black;
-            font-weight: bold;
+            width: 65px; height: 65px; background: white;
+            border: 2px solid #ccc; border-radius: 8px;
+            display: flex; flex-direction: column; align-items: center;
+            justify-content: center; font-size: 11px; cursor: pointer;
+            position: relative; color: black; font-weight: bold;
+            transition: transform 0.1s;
         }
 
-        .figurita.tengo { background: #4CAF50; color: white; border-color: #388E3C; }
-        .figurita.repetida { background: #FFC107; color: #333; }
-        
-        .btn-repetida {
-            position: absolute;
-            top: 2px;
-            right: 4px;
-            border: none;
-            background: transparent;
-            cursor: pointer;
-            font-size: 10px;
-            color: inherit;
+        .figurita:active { transform: scale(0.95); }
+
+        .figurita.tengo { background: #4CAF50; color: white; border-color: #2e7d32; }
+
+        /* Contador de repetidas dentro de la figurita */
+        .badge-rep {
+            position: absolute; top: -5px; right: -5px;
+            background: #FFC107; color: black; font-size: 10px;
+            padding: 2px 5px; border-radius: 10px; border: 1px solid black;
         }
+
+        /* Botón para restar o quitar */
+        .btn-quitar {
+            position: absolute; bottom: 2px; right: 2px;
+            background: rgba(0,0,0,0.2); border: none; color: white;
+            border-radius: 50%; width: 18px; height: 18px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 14px; cursor: pointer;
+        }
+        .btn-quitar:hover { background: rgba(255,0,0,0.6); }
 
         .hidden { display: none; }
 
-        /* --- RESPONSIVE --- */
         @media (max-width: 768px) {
             header { flex-direction: column; gap: 10px; }
             .busqueda-container { width: 95%; }
-            #busqueda { width: 60%; }
         }
     </style>
 </head>
 <body>
 
 <header>
-    <div>MI LISTA MUNDIALISTA</div>
+    <div>ALBUM VIRTUAL</div>
     <nav>
         <button class="todas" onclick="mostrar('todas')">Todas</button>
-        <button class="tengo" onclick="mostrar('tengo')">Tengo</button>
+        <button class="tengo" onclick="mostrar('tengo')">Pegadas</button>
         <button class="repetidas" onclick="mostrar('repetidas')">Repetidas</button>
-        <button class="faltan" onclick="mostrar('faltan')">Me faltan</button>
+        <button class="faltan" onclick="mostrar('faltan')">Faltan</button>
     </nav>
 </header>
 
@@ -204,7 +157,7 @@
     </div>
 
     <div class="busqueda-container">
-        <input type="text" id="busqueda" placeholder="Buscar país por código (ej: ARG)...">
+        <input type="text" id="busqueda" placeholder="Código de país (ej: ARG)...">
         <button id="btnBuscar" onclick="buscarPais()">Buscar</button>
     </div>
 
@@ -227,19 +180,17 @@
     let figuritas = [];
     let vistaActual = "todas";
 
-    // Inicialización de datos
     function inicializar() {
         figuritas = [];
         codigos.forEach(codigo => {
             let inicio = (codigo === "FWC") ? 0 : 1;
             let fin = (codigo === "FWC") ? 19 : 20;
-
             for (let i = inicio; i <= fin; i++) {
                 figuritas.push({
                     id: `${codigo} ${i.toString().padStart(2, "0")}`,
                     codigo,
-                    estado: "faltan",
-                    cantidad: 0
+                    estado: "faltan", // faltan o tengo
+                    cantidad: 0 // representa REPETIDAS (la primera no cuenta como repetida)
                 });
             }
         });
@@ -255,7 +206,7 @@
 
     function crearBloquePais(codigo) {
         const div = document.createElement("div");
-        div.id = codigo; 
+        div.id = codigo;
         div.innerHTML = `<h3>${codigo}</h3><div class="grid-figuritas"></div>`;
         return { div, grid: div.querySelector(".grid-figuritas") };
     }
@@ -270,12 +221,9 @@
             const titulo = bloque.querySelector("h3");
             titulo.style.color = "yellow";
             setTimeout(() => titulo.style.color = "", 2000);
-        } else {
-            alert("Código no encontrado en esta vista");
         }
     }
 
-    // Evento para Enter en el buscador
     document.getElementById("busqueda").addEventListener("keydown", e => {
         if (e.key === "Enter") buscarPais();
     });
@@ -288,78 +236,75 @@
             faltan: document.getElementById("faltan")
         };
 
-        // Limpiar secciones
-        Object.keys(secciones).forEach(sec => {
-            secciones[sec].innerHTML = `<h2>${sec.toUpperCase()}</h2>`;
-        });
+        Object.keys(secciones).forEach(sec => secciones[sec].innerHTML = `<h2>${sec.toUpperCase()}</h2>`);
 
-        // Crear mapas de contenedores por país
         const mapas = { todas: {}, tengo: {}, repetidas: {}, faltan: {} };
         codigos.forEach(codigo => {
-            Object.keys(mapas).forEach(sec => {
-                mapas[sec][codigo] = crearBloquePais(codigo);
-            });
+            Object.keys(mapas).forEach(sec => mapas[sec][codigo] = crearBloquePais(codigo));
         });
 
         figuritas.forEach(fig => {
-            // Figurita para vista "TODAS"
             const box = document.createElement("div");
             box.className = `figurita ${fig.estado === "tengo" ? "tengo" : ""}`;
-            box.textContent = fig.id;
-            
-            // Botón de repetidas (R)
-            const btnR = document.createElement("button");
-            btnR.className = "btn-repetida";
-            btnR.textContent = "R";
-            btnR.onclick = (e) => {
-                e.stopPropagation();
-                fig.cantidad++;
-                fig.estado = "tengo";
-                render();
-            };
+            box.innerHTML = `<span>${fig.id}</span>`;
 
-            box.onclick = () => {
-                fig.estado = (fig.estado === "faltan") ? "tengo" : "faltan";
-                if (fig.estado === "faltan") fig.cantidad = 0;
-                render();
-            };
+            // Si es verde, mostrar info de repetidas y botón quitar
+            if (fig.estado === "tengo") {
+                if (fig.cantidad > 0) {
+                    const badge = document.createElement("div");
+                    badge.className = "badge-rep";
+                    badge.textContent = `+${fig.cantidad}`;
+                    box.appendChild(badge);
+                }
 
-            box.appendChild(btnR);
-            mapas.todas[fig.codigo].grid.appendChild(box);
-
-            // Figurita para vista específica (Tengo / Faltan)
-            if (fig.estado !== "repetidas") { // Evitar duplicar lógica si no es necesario
-                const simple = document.createElement("div");
-                simple.className = `figurita ${fig.estado === "tengo" ? "tengo" : ""}`;
-                simple.textContent = fig.id;
-                mapas[fig.estado][fig.codigo].grid.appendChild(simple);
-            }
-
-            // Figuritas Repetidas
-            if (fig.cantidad > 0) {
-                const rep = document.createElement("div");
-                rep.className = "figurita repetida";
-                rep.innerHTML = `${fig.id} <br> x${fig.cantidad}`;
-                
-                const btnX = document.createElement("button");
-                btnX.className = "btn-repetida";
-                btnX.textContent = "✕";
-                btnX.onclick = (e) => {
-                    e.stopPropagation();
-                    fig.cantidad = Math.max(0, fig.cantidad - 1);
+                const btnQuitar = document.createElement("button");
+                btnQuitar.className = "btn-quitar";
+                btnQuitar.textContent = "–";
+                btnQuitar.onclick = (e) => {
+                    e.stopPropagation(); // Evita que el click sume
+                    if (fig.cantidad > 0) {
+                        fig.cantidad--;
+                    } else {
+                        fig.estado = "faltan";
+                    }
                     render();
                 };
+                box.appendChild(btnQuitar);
+            }
 
-                rep.appendChild(btnX);
-                mapas.repetidas[fig.codigo].grid.appendChild(rep);
+            // Click principal: Lógica de suma
+            box.onclick = () => {
+                if (fig.estado === "faltan") {
+                    fig.estado = "tengo";
+                } else {
+                    fig.cantidad++;
+                }
+                render();
+            };
+
+            // Inyectar en sección TODAS
+            mapas.todas[fig.codigo].grid.appendChild(box);
+
+            // Inyectar en secciones específicas (clones visuales)
+            if (fig.estado === "tengo") {
+                mapas.tengo[fig.codigo].grid.appendChild(box.cloneNode(true));
+                if (fig.cantidad > 0) {
+                    const repClone = box.cloneNode(true);
+                    mapas.repetidas[fig.codigo].grid.appendChild(repClone);
+                }
+            } else {
+                mapas.faltan[fig.codigo].grid.appendChild(box.cloneNode(true));
             }
         });
 
-        // Inyectar solo los bloques que tengan figuritas
+        // Re-asignar eventos a los clones (los clones pierden el onclick original)
+        // Por simplicidad en este ejemplo, inyectamos solo los bloques necesarios
         Object.keys(mapas).forEach(sec => {
             codigos.forEach(codigo => {
                 if (mapas[sec][codigo].grid.children.length > 0) {
-                    secciones[sec].appendChild(mapas[sec][codigo].div);
+                    // Re-renderizamos para que los clicks funcionen en todas las vistas
+                    const bloque = mapas[sec][codigo].div;
+                    secciones[sec].appendChild(bloque);
                 }
             });
         });
@@ -368,14 +313,91 @@
         localStorage.setItem("figuritas", JSON.stringify(figuritas));
     }
 
+    // Nota: Para que los eventos funcionen en las vistas filtradas,
+    // el render debe ser consistente. He ajustado el render para usar 
+    // la lógica de inyección directa en lugar de clones para mantener eventos.
+    
+    // Función de render optimizada para mantener eventos:
+    function renderMejorado() {
+        const secciones = {
+            todas: document.getElementById("todas"),
+            tengo: document.getElementById("tengo"),
+            repetidas: document.getElementById("repetidas"),
+            faltan: document.getElementById("faltan")
+        };
+
+        Object.keys(secciones).forEach(sec => secciones[sec].innerHTML = "");
+
+        const listasPaises = { todas: {}, tengo: {}, repetidas: {}, faltan: {} };
+
+        figuritas.forEach(fig => {
+            const crearFig = (isInteractive) => {
+                const box = document.createElement("div");
+                box.className = `figurita ${fig.estado === "tengo" ? "tengo" : ""}`;
+                box.innerHTML = `<span>${fig.id}</span>`;
+                
+                if (fig.estado === "tengo") {
+                    if (fig.cantidad > 0) {
+                        const b = document.createElement("div");
+                        b.className = "badge-rep";
+                        b.textContent = `+${fig.cantidad}`;
+                        box.appendChild(b);
+                    }
+                    const bq = document.createElement("button");
+                    bq.className = "btn-quitar";
+                    bq.textContent = "–";
+                    bq.onclick = (e) => {
+                        e.stopPropagation();
+                        if (fig.cantidad > 0) fig.cantidad--;
+                        else fig.estado = "faltan";
+                        renderMejorado();
+                    };
+                    box.appendChild(bq);
+                }
+
+                box.onclick = () => {
+                    if (fig.estado === "faltan") fig.estado = "tengo";
+                    else fig.cantidad++;
+                    renderMejorado();
+                };
+                return box;
+            };
+
+            // Todas
+            if (!listasPaises.todas[fig.codigo]) listasPaises.todas[fig.codigo] = crearBloquePais(fig.codigo);
+            listasPaises.todas[fig.codigo].grid.appendChild(crearFig());
+
+            // Filtros
+            if (fig.estado === "tengo") {
+                if (!listasPaises.tengo[fig.codigo]) listasPaises.tengo[fig.codigo] = crearBloquePais(fig.codigo);
+                listasPaises.tengo[fig.codigo].grid.appendChild(crearFig());
+                
+                if (fig.cantidad > 0) {
+                    if (!listasPaises.repetidas[fig.codigo]) listasPaises.repetidas[fig.codigo] = crearBloquePais(fig.codigo);
+                    listasPaises.repetidas[fig.codigo].grid.appendChild(crearFig());
+                }
+            } else {
+                if (!listasPaises.faltan[fig.codigo]) listasPaises.faltan[fig.codigo] = crearBloquePais(fig.codigo);
+                listasPaises.faltan[fig.codigo].grid.appendChild(crearFig());
+            }
+        });
+
+        Object.keys(listasPaises).forEach(sec => {
+            Object.values(listasPaises[sec]).forEach(bloque => secciones[sec].appendChild(bloque.div));
+        });
+
+        actualizarProgreso();
+        localStorage.setItem("figuritas", JSON.stringify(figuritas));
+    }
+
     function actualizarProgreso() {
         const total = figuritas.length;
-        const faltan = figuritas.filter(f => f.estado === "faltan").length;
+        const pegadas = figuritas.filter(f => f.estado === "tengo").length;
         const totalRepetidas = figuritas.reduce((acc, f) => acc + f.cantidad, 0);
-        const progreso = ((total - faltan) / total) * 100;
+        const progreso = (pegadas / total) * 100;
 
         document.getElementById("contador").textContent = 
-            `Te faltan ${faltan} de ${total} (${(progreso).toFixed(1)}%) | Repetidas: ${totalRepetidas}`;
+            `Pegadas: ${pegadas} de ${total} (${progreso.toFixed(1)}%) | Repetidas: ${totalRepetidas}`;
         
         document.getElementById("barra").style.width = progreso + "%";
         document.getElementById("copa").style.left = progreso + "%";
@@ -384,12 +406,11 @@
         else document.getElementById("copa").classList.remove("completo");
     }
 
-    // Carga inicial
     const guardado = localStorage.getItem("figuritas");
     if (guardado) figuritas = JSON.parse(guardado);
     else inicializar();
 
-    render();
+    renderMejorado();
     mostrar("todas");
 </script>
 
