@@ -461,12 +461,11 @@ document.getElementById("busqueda").addEventListener("keydown", e => {
     const { value: tituloUsuario } = await Swal.fire({
         title: 'Título del PDF',
         input: 'text',
-        inputLabel: 'Escribí tu nombre',
-        inputValue: '',
+        inputValue: 'Escribí tu nombre',
         showCancelButton: true,
-        confirmButtonText: 'OK',
-        cancelButtonText: 'Cancelar',
-        confirmButtonColor: '#007bff', 
+        confirmButtonText: 'Generar',
+        cancelButtonText: 'Cerrar',
+        confirmButtonColor: '#007bff',
         cancelButtonColor: '#dc3545',
         background: '#1a1a1a', color: '#ffffff'
     });
@@ -476,96 +475,103 @@ document.getElementById("busqueda").addEventListener("keydown", e => {
     try {
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
-        let y = 20;
+        
+        // --- 1. DATOS LIMPIOS ---
+        // Usamos una copia profunda para evitar conflictos de memoria en iOS
+        const copiaFiguritas = JSON.parse(JSON.stringify(figuritas));
+        const total = copiaFiguritas.length;
+        const tengo = copiaFiguritas.filter(f => String(f.estado).toLowerCase() === "tengo").length;
+        const faltanTotal = total - tengo;
+        const porcentaje = ((tengo / total) * 100).toFixed(1);
 
-        // 1. CÁLCULOS DE PROGRESO Y FALTANTES
-        const totalFigus = figuritas.length;
-        const tengoCount = figuritas.filter(f => f.estado === "tengo").length;
-        const faltanTotal = totalFigus - tengoCount;
-        const porcentaje = ((tengoCount / totalFigus) * 100).toFixed(1);
-
-        // 2. DICCIONARIO DE PAÍSES
         const listaCodigos = ["FWC","MEX","RSA","KOR","CZE","CAN","BIH","QAT","SUI","BRA","MAR","HAI","SCO","USA","PAR","AUS","TUR","GER","CUW","CIV","ECU","NED","JPN","SWE","TUN","BEL","EGY","IRN","NZL","ESP","CPV","KSA","URU","FRA","SEN","IRQ","NOR","ARG","ALG","AUT","JOR","POR","COD","UZB","COL","ENG","CRO","GHA","PAN"];
 
-        // 3. PRE-PROCESAMIENTO DE TEXTO (Para estabilidad en móvil)
-        let lineasFaltantes = [];
-        let lineasRepetidas = [];
+        let y = 20;
 
-        listaCodigos.forEach(cod => {
-            const fList = figuritas.filter(f => f.codigo === cod && f.estado !== "tengo");
-            if (fList.length > 0) {
-                const nums = fList.map(f => f.id.replace(cod, "").trim()).join(", ");
-                lineasFaltantes.push(`${cod}: ${nums}`);
-            }
-
-            const rList = figuritas.filter(f => f.codigo === cod && parseInt(f.cantidad) > 0);
-            if (rList.length > 0) {
-                const numsR = rList.map(f => `${f.id.replace(cod, "").trim()}(x${f.cantidad})`).join(", ");
-                lineasRepetidas.push(`${cod}: ${numsR}`);
-            }
-        });
-
-        // 4. DISEÑO DEL PDF
+        // --- 2. ENCABEZADO ---
         doc.setFontSize(20);
         doc.setTextColor(255, 87, 34);
         doc.text(tituloUsuario.toUpperCase(), 105, y, { align: "center" });
         y += 15;
 
-        // RECUADRO DE ESTADÍSTICAS (Compleción y Faltantes)
         doc.setFillColor(240, 240, 240);
         doc.rect(15, y, 180, 25, 'F');
-        doc.setFontSize(11);
+        doc.setFontSize(10);
         doc.setTextColor(40);
-        doc.text(`Álbum de: ${tituloUsuario}`, 25, y + 10);
-        doc.text(`Progreso: ${porcentaje}% (${tengoCount}/${totalFigus})`, 25, y + 18);
-        
+        doc.text(`Álbum: ${tituloUsuario}`, 25, y + 10);
+        doc.text(`Progreso: ${porcentaje}% (${tengo}/${total})`, 25, y + 18);
         doc.setTextColor(220, 20, 20);
-        doc.setFont("helvetica", "bold");
-        doc.text(`FALTAN: ${faltanTotal}`, 135, y + 15);
-        doc.setFont("helvetica", "normal");
+        doc.text(`FALTAN: ${faltanTotal}`, 140, y + 14);
         y += 35;
 
-        // SECCIÓN FALTANTES
-        doc.setFontSize(16);
+        // --- 3. BUCLE DE FALTANTES (CON PROTECCIÓN ANTI-ERRORES) ---
+        doc.setFontSize(14);
         doc.setTextColor(220, 20, 20);
         doc.text("DETALLE DE FALTANTES", 15, y);
         y += 10;
 
-        doc.setFontSize(9);
-        doc.setTextColor(0);
-        lineasFaltantes.forEach(linea => {
-            const split = doc.splitTextToSize(linea, 180);
-            split.forEach(l => {
-                if (y > 275) { doc.addPage(); y = 20; }
-                doc.text(l, 15, y);
-                y += 6;
-            });
-        });
+        for (let i = 0; i < listaCodigos.length; i++) {
+            try {
+                const cod = listaCodigos[i];
+                const faltantes = copiaFiguritas.filter(f => 
+                    String(f.codigo).toUpperCase() === cod && 
+                    String(f.estado).toLowerCase() !== "tengo"
+                );
 
-        // SECCIÓN REPETIDAS
-        y += 15;
+                if (faltantes.length > 0) {
+                    const nums = faltantes.map(f => String(f.id).replace(cod, "").trim()).join(", ");
+                    const lineas = doc.splitTextToSize(`${cod}: ${nums}`, 175);
+                    doc.setFontSize(9);
+                    doc.setTextColor(0);
+                    for (let l of lineas) {
+                        if (y > 275) { doc.addPage(); y = 20; }
+                        doc.text(l, 15, y);
+                        y += 6;
+                    }
+                }
+            } catch (errPais) {
+                console.error("Error en país " + listaCodigos[i], errPais);
+                continue; // Si falla CZE, que siga con el resto
+            }
+        }
+
+        // --- 4. BUCLE DE REPETIDAS ---
+        y += 12;
         if (y > 250) { doc.addPage(); y = 20; }
-        doc.setFontSize(16);
+        doc.setFontSize(14);
         doc.setTextColor(40, 160, 40);
         doc.text("MIS REPETIDAS", 15, y);
         y += 10;
 
-        doc.setFontSize(9);
-        doc.setTextColor(0);
-        lineasRepetidas.forEach(linea => {
-            const splitR = doc.splitTextToSize(linea, 180);
-            splitR.forEach(lr => {
-                if (y > 275) { doc.addPage(); y = 20; }
-                doc.text(lr, 15, y);
-                y += 6;
-            });
-        });
+        for (let i = 0; i < listaCodigos.length; i++) {
+            try {
+                const cod = listaCodigos[i];
+                const repes = copiaFiguritas.filter(f => 
+                    String(f.codigo).toUpperCase() === cod && 
+                    parseInt(f.cantidad) > 0
+                );
 
-        // 5. GUARDADO
+                if (repes.length > 0) {
+                    const numRepes = repes.map(f => `${String(f.id).replace(cod, "").trim()}(x${f.cantidad})`).join(", ");
+                    const lineasR = doc.splitTextToSize(`${cod}: ${numRepes}`, 175);
+                    doc.setFontSize(9);
+                    doc.setTextColor(0);
+                    for (let lr of lineasR) {
+                        if (y > 275) { doc.addPage(); y = 20; }
+                        doc.text(lr, 15, y);
+                        y += 6;
+                    }
+                }
+            } catch (errRepe) {
+                continue;
+            }
+        }
+
+        // --- 5. GUARDADO ---
         doc.save(`${tituloUsuario.replace(/\s+/g, '_')}.pdf`);
 
     } catch (e) {
-        alert("Error en el proceso: " + e.message);
+        alert("Error General: " + e.message);
     }
 }
     renderMejorado();
