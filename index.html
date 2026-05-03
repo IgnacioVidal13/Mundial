@@ -223,50 +223,51 @@
 
     // 2. Reemplazá tu función buscarPais por esta
     function buscarPais() {
-        const inputBusqueda = document.getElementById("busqueda");
-        const filtro = inputBusqueda.value.trim().toUpperCase();
-        
-        // Buscamos el país SOLO dentro de la pestaña que tenés abierta ahora
-        const seccionActual = document.getElementById(vistaActual);
-        const bloque = seccionActual.querySelector(`[data-pais="${filtro}"]`);
+    const inputBusqueda = document.getElementById("busqueda");
+    const filtro = inputBusqueda.value.trim().toUpperCase();
+    
+    if (!filtro) return; // Si está vacío no hace nada
 
-        if (bloque) {
-            // El scrollIntoView a veces falla en celular si no tiene estos parámetros:
-            bloque.scrollIntoView({ 
-                behavior: "smooth", 
-                block: "center",
-                inline: "nearest" 
-            });
+    // Buscamos el bloque que tenga el atributo data-pais igual al filtro
+    const bloque = document.querySelector(`[data-pais="${filtro}"]`);
 
-            // Feedback visual: resaltamos el título para que sepas que lo encontró
-            const titulo = bloque.querySelector("h3");
-            titulo.style.transition = "all 0.3s";
-            titulo.style.color = "#FFD700"; // Color Oro
-            titulo.style.textShadow = "0 0 10px gold";
+    if (bloque) {
+        // En iPhone, el scroll suave a veces se corta. 
+        // "block: center" es clave para que no quede tapado por el buscador
+        bloque.scrollIntoView({ 
+            behavior: "smooth", 
+            block: "center"
+        });
+
+        // Feedback visual tipo "oro" (como los kits de Norwich que te gustan)
+        const titulo = bloque.querySelector("h3");
+        if (titulo) {
+            titulo.style.color = "#FFD700"; 
+            titulo.style.textShadow = "0 0 15px #FFD700";
             
             setTimeout(() => {
                 titulo.style.color = "";
                 titulo.style.textShadow = "";
-            }, 2500);
+            }, 3000);
+        }
 
-            // Cerramos el teclado en celulares
-            inputBusqueda.blur(); 
-        } else {
+        inputBusqueda.blur(); // Cierra el teclado
+    } else {
         Swal.fire({
-        title: '¡País no encontrado!',
-        text: `No hay figuritas de "${filtro}" en la sección ${vistaActual}`,
-        icon: 'error',
-        confirmButtonText: 'Entendido',
-        confirmButtonColor: '#2196F3',
-        background: '#1a1a1a',
-        color: '#ffffff'
-    });
-}
+            title: 'País no encontrado',
+            text: `No se encontró "${filtro}". Asegurate de usar el código (ej: ARG, CZE, MEX).`,
+            icon: 'warning',
+            confirmButtonColor: '#007bff',
+            background: '#1a1a1a',
+            color: '#ffffff'
+        });
     }
+}
 
-    document.getElementById("busqueda").addEventListener("keydown", e => {
-        if (e.key === "Enter") buscarPais();
-    });
+// Escuchar el Enter
+document.getElementById("busqueda").addEventListener("keydown", e => {
+    if (e.key === "Enter") buscarPais();
+});
 
     function render() {
         const secciones = {
