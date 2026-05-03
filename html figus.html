@@ -51,7 +51,7 @@ main {
   min-height:100vh;
   color:white;
 
-  background: linear-gradient(270deg, #1e3c72, #38ef7d, #ff4b2b, #1e3c72);
+  background: linear-gradient(270deg, #ffffff, #67b7f4, #ffffff, #679cff);
   background-size: 800% 800%;
   animation: lava 18s ease infinite;
 }
@@ -147,6 +147,31 @@ main {
   display:none;
 }
 
+.busqueda-container {
+  display: flex;
+  justify-content: center; /* centra horizontalmente */
+  margin: 20px 0;
+}
+#busqueda {
+margin-bottom: 10px;
+margin: 20px auto;
+padding: 5px;
+width: 250px;
+padding-top: 20px;
+text-align: center;
+border-color: transparent;
+align-self: center;
+}
+
+.pais {
+margin: 5px 0;
+padding: 5px;
+border: 1px solid #ccc;
+display: inline-block;
+}
+.resaltado {
+background-color: rgba(167, 167, 40, 0.737);
+}
 </style>
 </head>
 
@@ -162,6 +187,7 @@ main {
   </nav>
 </header>
 
+
 <main>
 
 <div id="contador"></div>
@@ -170,6 +196,10 @@ main {
   <div id="barra"></div>
   <img id="copa" src="copa.png">
 </div>
+<div class="busqueda-container">
+<input type="text" id="busqueda" placeholder="Buscar país por codigo...">
+</div>
+  <div id="lista"></div>
 
 <section id="todas"></section>
 <section id="tengo" class="hidden"></section>
@@ -181,11 +211,14 @@ main {
 <script>
 
 const codigos = [
-"FWC","MEX","RSA","KOR","CZE","CAN","BIH","QAT","SUI","BRA","MAR","HAI","SCO","USA","PAR",
-"AUS","TUR","GER","CUW","CIV","ECU","NED","JPN","SWE","TUN","BEL","EGY","IRN","NZL","ESP",
-"CPV","KSA","URU","FRA","SEN","IRQ","NOR","ARG","ALG","AUT","JOR","POR","COD","UZB","COL",
-"ENG","CRO","GHA","PAN"
+"FWC ","MEX ","RSA ","KOR ","CZE","CAN ","BIH ","QAT ","SUI ","BRA ",
+"MAR ","HAI ","SCO ","USA ","PAR ","AUS ","TUR ","GER ","CUW ",
+"CIV ","ECU ","NED ","JPN ","SWE ","TUN ","BEL ","EGY ","IRN ",
+"NZL ","ESP ","CPV ","KSA ","URU ","FRA ","SEN ","IRQ ","NOR ",
+"ARG ","ALG ","AUT ","JOR ","POR ","COD ","UZB ","COL ","ENG ",
+"CRO ','GHA ','PAN "
 ];
+
 
 let figuritas = [];
 let vistaActual = "todas";
@@ -215,8 +248,13 @@ function inicializar() {
   });
 }
 
-function crearBloquePais(nombre) {
+const lista = document.getElementById("lista");
+    
+
+   function crearBloquePais(nombre) {
   const div = document.createElement("div");
+  // id = código (ej: "MEX"), tomo la primera palabra antes del emoji
+  div.id = nombre.split(" ")[0]; 
   const titulo = document.createElement("h3");
   titulo.textContent = nombre;
 
@@ -228,6 +266,25 @@ function crearBloquePais(nombre) {
 
   return { div, grid };
 }
+
+// buscador que lleva al bloque del país
+const busqueda = document.getElementById("busqueda");
+busqueda.addEventListener("keydown", e => {
+  if (e.key === "Enter") {
+    const filtro = e.target.value.trim().toUpperCase();
+
+    // usamos la sección actual
+    const seccionActual = document.getElementById(vistaActual);
+    const bloque = seccionActual.querySelector(`#${filtro}`);
+
+    if (bloque) {
+      bloque.scrollIntoView({ behavior: "smooth", block: "center" });
+      bloque.style.backgroundColor = "yellow";
+      setTimeout(() => bloque.style.backgroundColor = "", 2000);
+    }
+  }
+});
+
 
 function render() {
 
@@ -351,7 +408,7 @@ function render() {
 }
 
 
-
+localStorage.removeItem("figuritas");
 const guardado = localStorage.getItem("figuritas");
 if (guardado) figuritas = JSON.parse(guardado);
 else inicializar();
