@@ -160,6 +160,12 @@
         @media (max-width: 768px) {
             header { flex-direction: column; gap: 10px; }
             .busqueda-container { width: 95%; }
+            #login-overlay { padding: 10px; align-items: flex-start !important; }
+            #login-overlay .login-card { width: 100%; max-width: none; }
+            #login-overlay .login-card input,
+            #login-overlay .login-card button {
+                font-size: 16px;
+            }
         }
 
         #mi-qr-seccion, #buscar-amigo {
@@ -568,7 +574,18 @@
         #vista-bienvenida h2 { margin: 0 0 12px; color: #111; font-size: 1.35rem; }
         #vista-bienvenida p { margin: 0; line-height: 1.5; font-size: 16px; color: #444; }
 
-        #login-overlay .login-card { position: relative; }
+        #login-overlay {
+            overflow-y: auto;
+            padding: 16px;
+            box-sizing: border-box;
+            -webkit-overflow-scrolling: touch;
+        }
+        #login-overlay .login-card {
+            position: relative;
+            max-height: calc(100vh - 32px);
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
         #login-overlay .btn-cerrar-modal {
             position: absolute;
             top: 8px;
@@ -883,7 +900,14 @@
     }
 
     function obtenerAuthRedirectUrl() {
-        return window.location.href.split("#")[0].split("?")[0];
+        try {
+            const u = new URL(window.location.href);
+            u.hash = "";
+            u.search = "";
+            return u.toString();
+        } catch (e) {
+            return window.location.href.split("#")[0].split("?")[0];
+        }
     }
 
     async function obtenerBearerSesionSupabase(sb) {
@@ -1503,12 +1527,26 @@
         return hashParams.get(nombre);
     }
 
+    function obtenerDatosAuthUrl() {
+        const datos = {};
+        const params = new URLSearchParams(window.location.search);
+        const hash = window.location.hash ? window.location.hash.replace(/^#/, "") : "";
+        const hashParams = new URLSearchParams(hash);
+        ["code", "type", "access_token", "refresh_token", "token_hash", "token_type", "expires_in", "expires_at", "error", "error_description"].forEach((clave) => {
+            const value = params.get(clave) || hashParams.get(clave);
+            if (value !== null && value !== undefined && value !== "") datos[clave] = value;
+        });
+        return datos;
+    }
+
     function urlEsRecoveryPassword() {
-        return obtenerParametroAuthUrl("type") === "recovery" || obtenerParametroAuthUrl("type") === "password_recovery";
+        const datos = obtenerDatosAuthUrl();
+        return datos.type === "recovery" || datos.type === "password_recovery" || !!datos.token_hash;
     }
 
     function urlTieneCallbackAuth() {
-        return !!obtenerParametroAuthUrl("code") || !!obtenerParametroAuthUrl("access_token") || !!obtenerParametroAuthUrl("refresh_token");
+        const datos = obtenerDatosAuthUrl();
+        return !!datos.code || !!datos.access_token || !!datos.refresh_token || !!datos.token_hash;
     }
 
     function urlEsConfirmacionRegistro() {
@@ -1519,7 +1557,7 @@
     function limpiarParametrosRecoveryUrl() {
         try {
             const u = new URL(window.location.href);
-            ["code", "type", "access_token", "refresh_token", "expires_in", "expires_at", "token_type"].forEach(p => u.searchParams.delete(p));
+            ["code", "type", "access_token", "refresh_token", "expires_in", "expires_at", "token_type", "token_hash", "error", "error_description"].forEach(p => u.searchParams.delete(p));
             u.hash = "";
             window.history.replaceState({}, document.title, u.toString());
         } catch (e) {
@@ -1529,10 +1567,30 @@
 
     async function procesarRecoveryDesdeUrl(sb = getSupabase()) {
         if (!sb || !urlEsRecoveryPassword()) return false;
-        const code = obtenerParametroAuthUrl("code");
+        const datos = obtenerDatosAuthUrl();
         try {
-            if (code && typeof sb.auth.exchangeCodeForSession === "function") {
-                const { error } = await sb.auth.exchangeCodeForSession(code);
+            if (datos.code && typeof sb.auth.exchangeCodeForSession === "function") {
+                const { error } = await sb.auth.exchangeCodeForSession(datos.code);
+                if (error) {
+                    const x = mensajeAuthError(error);
+                    await Swal.fire({ ...x, ...swalBase });
+                    return true;
+                }
+            } else if (datos.token_hash && typeof sb.auth.verifyOtp === "function") {
+                const { error } = await sb.auth.verifyOtp({
+                    token_hash: datos.token_hash,
+                    type: "recovery"
+                });
+                if (error) {
+                    const x = mensajeAuthError(error);
+                    await Swal.fire({ ...x, ...swalBase });
+                    return true;
+                }
+            } else if (datos.access_token && datos.refresh_token && typeof sb.auth.setSession === "function") {
+                const { error } = await sb.auth.setSession({
+                    access_token: datos.access_token,
+                    refresh_token: datos.refresh_token
+                });
                 if (error) {
                     const x = mensajeAuthError(error);
                     await Swal.fire({ ...x, ...swalBase });
@@ -1565,11 +1623,17 @@
 
     async function procesarConfirmacionAuthDesdeUrl(sb = getSupabase()) {
         if (!sb || urlEsRecoveryPassword() || !urlTieneCallbackAuth()) return false;
-        const code = obtenerParametroAuthUrl("code");
+        const datos = obtenerDatosAuthUrl();
         try {
-            if (code && typeof sb.auth.exchangeCodeForSession === "function") {
-                const { error } = await sb.auth.exchangeCodeForSession(code);
+            if (datos.code && typeof sb.auth.exchangeCodeForSession === "function") {
+                const { error } = await sb.auth.exchangeCodeForSession(datos.code);
                 if (error) console.warn("confirmacion auth:", error.message || error);
+            } else if (datos.token_hash && typeof sb.auth.verifyOtp === "function") {
+                const { error } = await sb.auth.verifyOtp({
+                    token_hash: datos.token_hash,
+                    type: "email"
+                });
+                if (error) console.warn("confirmacion auth token_hash:", error.message || error);
             }
             const { data: { session } } = await sb.auth.getSession();
             limpiarParametrosRecoveryUrl();
