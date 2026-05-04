@@ -661,7 +661,7 @@
                 <span>Recordar este dispositivo</span>
             </label>
             <p style="text-align: center; margin: 4px 0 8px;"><a href="#" class="link-auth" onclick="event.preventDefault(); recuperarPassword();">¿Olvidaste tu contraseña?</a></p>
-            <button type="button" onclick="auth('login')" style="width: 100%; padding: 12px; background: rgb(187, 255, 255); border: none; font-weight: bold; cursor: pointer; margin-top: 6px;">Entrar</button>
+            <button type="button" id="btn-login-submit" onclick="auth('login')" style="width: 100%; padding: 12px; background: rgb(187, 255, 255); border: none; font-weight: bold; cursor: pointer; margin-top: 6px;">Entrar</button>
             <p style="color: #666; margin-top: 16px; font-size: 14px;">¿Todavía no tenés cuenta? <a href="#" onclick="event.preventDefault(); toggleAuth();" style="color: #b8860b; font-weight: bold;">Crear cuenta</a></p>
         </div>
 
@@ -680,7 +680,7 @@
                 <li>Al menos <strong>un número</strong></li>
                 <li>Al menos <strong>un símbolo</strong> (por ejemplo ! @ # $ %)</li>
             </ul>
-            <button type="button" onclick="auth('register')" style="width: 100%; padding: 12px; background: #4CAF50; color: white; border: none; font-weight: bold; cursor: pointer; margin-top: 6px;">Registrarme</button>
+            <button type="button" id="btn-register-submit" onclick="auth('register')" style="width: 100%; padding: 12px; background: #4CAF50; color: white; border: none; font-weight: bold; cursor: pointer; margin-top: 6px;">Registrarme</button>
             <p style="color: #666; margin-top: 16px; font-size: 14px;">¿Ya tenés cuenta? <a href="#" onclick="event.preventDefault(); toggleAuth();" style="color: #00897b; font-weight: bold;">Iniciar sesión</a></p>
         </div>
     </div>
@@ -1231,10 +1231,27 @@
         r.style.display = r.style.display === "none" ? "block" : "none";
     }
 
+    let _authEnCurso = false;
+    function setAuthUIBusy(busy) {
+        const btnLogin = document.getElementById("btn-login-submit");
+        const btnRegister = document.getElementById("btn-register-submit");
+        [btnLogin, btnRegister].forEach((btn) => {
+            if (!btn) return;
+            btn.disabled = !!busy;
+            btn.style.opacity = busy ? "0.7" : "";
+            btn.style.cursor = busy ? "wait" : "pointer";
+        });
+    }
+
     async function auth(tipo) {
+        if (_authEnCurso) return;
+        _authEnCurso = true;
+        setAuthUIBusy(true);
         const email = document.getElementById(tipo === "login" ? "user-login" : "user-reg").value.trim().toLowerCase();
         const password = document.getElementById(tipo === "login" ? "pass-login" : "pass-reg").value;
         if (!email || !password) {
+            _authEnCurso = false;
+            setAuthUIBusy(false);
             return Swal.fire({
                 title: "Completá los datos",
                 text: "Necesitamos tu correo y tu contraseña para continuar.",
@@ -1243,8 +1260,113 @@
             });
         }
 
-        const sb = getSupabase();
-        if (sb) {
+        try {
+            const sb = getSupabase();
+            if (sb) {
+                if (tipo === "register") {
+                    const rawNombre = document.getElementById("reg-username-public").value;
+                    const normNombre = normalizarNombreUsuario(rawNombre);
+                    const errNom = validarNombreUsuarioPublico(normNombre);
+                    if (errNom) {
+                        return Swal.fire({ title: "Nombre público", text: errNom, icon: "warning", ...swalBase });
+                    }
+                    const pass2 = document.getElementById("reg-pass-confirm").value;
+                    if (password !== pass2) {
+                        return Swal.fire({
+                            title: "Las contraseñas no coinciden",
+                            text: "Volvé a escribir la misma contraseña en los dos campos.",
+                            icon: "warning",
+                            ...swalBase
+                        });
+                    }
+                    const errPw = validarPasswordRegistro(password);
+                    if (errPw) {
+                        return Swal.fire({ title: "Contraseña", text: errPw, icon: "warning", ...swalBase });
+                    }
+
+                    const disp = await nombreUsuarioSupabaseDisponible(normNombre);
+                    if (disp === null) {
+                        return Swal.fire({
+                            title: "No pudimos validar el nombre",
+                            text: "¿Ejecutaste el SQL nuevo en Supabase (tabla profiles y función username_disponible)? Revisá la consola por errores.",
+                            icon: "error",
+                            ...swalBase
+                        });
+                    }
+                    if (!disp) {
+                        return Swal.fire({
+                            title: "Nombre ya en uso",
+                            text: "Elegí otro nombre público; ese ya lo tiene otra persona.",
+                            icon: "warning",
+                            ...swalBase
+                        });
+                    }
+
+                    const { data, error } = await sb.auth.signUp({
+                        email,
+                        password,
+                        options: {
+                            emailRedirectTo: obtenerAuthRedirectUrl(),
+                            data: { username: normNombre }
+                        }
+                    });
+                    if (error) {
+                        const x = mensajeAuthError(error);
+                        return Swal.fire({ ...x, ...swalBase });
+                    }
+
+                    if (await aplicarSesionDesdeAuthData(sb, data)) {
+                        nombreVisibleUsuario = normNombre;
+                        actualizarTextoChipUsuario();
+                        return Swal.fire({
+                            title: "¡Listo!",
+                            text: "Tu cuenta quedó creada. Ya podés cargar tu álbum.",
+                            icon: "success",
+                            ...swalBase
+                        });
+                    }
+
+                    await Swal.fire({
+                        title: "Te enviamos un correo",
+                        html: "Abrí el mensaje y tocá el <strong>enlace de confirmación</strong> para activar la cuenta. Después entrá con tu correo y contraseña.<br><small>(Si no ves el mail, mirá spam.)</small>",
+                        icon: "success",
+                        ...swalBase
+                    });
+                    toggleAuth();
+                    return;
+                }
+
+                if (tipo === "login") {
+                    const recordar = document.getElementById("recordar-dispositivo-login");
+                    const recordarActivo = !recordar || recordar.checked;
+                    setRecordarDispositivo(recordarActivo);
+                    limpiarSesionPersistidaSupabase(recordarActivo ? sessionStorage : localStorage);
+                }
+
+                const { data, error } = await sb.auth.signInWithPassword({ email, password });
+                if (error) {
+                    const x = mensajeAuthError(error);
+                    return Swal.fire({ ...x, ...swalBase });
+                }
+                if (!(await aplicarSesionDesdeAuthData(sb, data))) {
+                    return Swal.fire({
+                        title: "No se pudo iniciar la sesion",
+                        text: "Supabase respondio correctamente, pero no devolvio una sesion activa.",
+                        icon: "error",
+                        ...swalBase
+                    });
+                }
+                return Swal.fire({
+                    title: "¡Hola de nuevo!",
+                    text: "Sesión iniciada.",
+                    icon: "success",
+                    timer: 2000,
+                    showConfirmButton: false,
+                    ...swalBase
+                });
+            }
+
+            let usuarios = JSON.parse(localStorage.getItem("db_usuarios") || "{}");
             if (tipo === "register") {
                 const rawNombre = document.getElementById("reg-username-public").value;
                 const normNombre = normalizarNombreUsuario(rawNombre);
@@ -1252,11 +1374,19 @@
                 if (errNom) {
                     return Swal.fire({ title: "Nombre público", text: errNom, icon: "warning", ...swalBase });
                 }
+                if (!nombreUsuarioLocalDisponible(normNombre)) {
+                    return Swal.fire({
+                        title: "Nombre ya en uso",
+                        text: "Elegí otro nombre público; en este dispositivo ya está tomado.",
+                        icon: "warning",
+                        ...swalBase
+                    });
+                }
                 const pass2 = document.getElementById("reg-pass-confirm").value;
                 if (password !== pass2) {
                     return Swal.fire({
                         title: "Las contraseñas no coinciden",
-                        text: "Volvé a escribir la misma contraseña en los dos campos.",
+                        text: "Repetí exactamente la misma contraseña.",
                         icon: "warning",
                         ...swalBase
                     });
@@ -1265,159 +1395,55 @@
                 if (errPw) {
                     return Swal.fire({ title: "Contraseña", text: errPw, icon: "warning", ...swalBase });
                 }
-
-                const disp = await nombreUsuarioSupabaseDisponible(normNombre);
-                if (disp === null) {
+                if (usuarios[email]) {
                     return Swal.fire({
-                        title: "No pudimos validar el nombre",
-                        text: "¿Ejecutaste el SQL nuevo en Supabase (tabla profiles y función username_disponible)? Revisá la consola por errores.",
-                        icon: "error",
-                        ...swalBase
-                    });
-                }
-                if (!disp) {
-                    return Swal.fire({
-                        title: "Nombre ya en uso",
-                        text: "Elegí otro nombre público; ese ya lo tiene otra persona.",
+                        title: "Correo ya registrado",
+                        text: "Ese email ya tiene cuenta en este navegador. Iniciá sesión o usá otro correo.",
                         icon: "warning",
                         ...swalBase
                     });
                 }
-
-                const { data, error } = await sb.auth.signUp({
-                    email,
-                    password,
-                    options: {
-                        emailRedirectTo: obtenerAuthRedirectUrl(),
-                        data: { username: normNombre }
-                    }
-                });
-                if (error) {
-                    const x = mensajeAuthError(error);
-                    return Swal.fire({ ...x, ...swalBase });
-                }
-
-                if (await aplicarSesionDesdeAuthData(sb, data)) {
-                    nombreVisibleUsuario = normNombre;
-                    actualizarTextoChipUsuario();
-                    return Swal.fire({
-                        title: "¡Listo!",
-                        text: "Tu cuenta quedó creada. Ya podés cargar tu álbum.",
-                        icon: "success",
-                        ...swalBase
-                    });
-                }
-
+                usuarios[email] = { password, username: normNombre };
+                localStorage.setItem("db_usuarios", JSON.stringify(usuarios));
+                inicializar();
+                localStorage.setItem("figuritas_" + email, JSON.stringify(figuritas));
                 await Swal.fire({
-                    title: "Te enviamos un correo",
-                    html: "Abrí el mensaje y tocá el <strong>enlace de confirmación</strong> para activar la cuenta. Después entrá con tu correo y contraseña.<br><small>(Si no ves el mail, mirá spam.)</small>",
+                    title: "Cuenta creada",
+                    text: "Ahora iniciá sesión con el mismo correo y contraseña.",
                     icon: "success",
                     ...swalBase
                 });
                 toggleAuth();
                 return;
             }
-
-            if (tipo === "login") {
-                const recordar = document.getElementById("recordar-dispositivo-login");
-                const recordarActivo = !recordar || recordar.checked;
-                setRecordarDispositivo(recordarActivo);
-                limpiarSesionPersistidaSupabase(recordarActivo ? sessionStorage : localStorage);
-            }
-
-            const { data, error } = await sb.auth.signInWithPassword({ email, password });
-            if (error) {
-                const x = mensajeAuthError(error);
-                return Swal.fire({ ...x, ...swalBase });
-            }
-            if (!(await aplicarSesionDesdeAuthData(sb, data))) {
+            if (usuarios[email] && usuarios[email].password === password) {
+                usuarioActual = email;
+                cerrarLoginOverlay();
+                await cargarDatosUsuario();
+                aplicarSesionActivaUI(true);
                 return Swal.fire({
-                    title: "No se pudo iniciar la sesion",
-                    text: "Supabase respondio correctamente, pero no devolvio una sesion activa.",
-                    icon: "error",
+                    title: "¡Hola de nuevo!",
+                    text: "Sesión iniciada.",
+                    icon: "success",
+                    timer: 2000,
+                    showConfirmButton: false,
                     ...swalBase
                 });
             }
             return Swal.fire({
-                title: "¡Hola de nuevo!",
-                text: "Sesión iniciada.",
-                icon: "success",
-                timer: 2000,
-                showConfirmButton: false,
+                title: "No encontramos la cuenta",
+                text: "El correo o la contraseña no coinciden. Si no tenés cuenta, creá una desde «Crear cuenta».",
+                icon: "error",
                 ...swalBase
             });
+        } catch (error) {
+            console.error("auth:", error);
+            const x = mensajeAuthError(error);
+            return Swal.fire({ ...x, ...swalBase });
+        } finally {
+            _authEnCurso = false;
+            setAuthUIBusy(false);
         }
-
-        let usuarios = JSON.parse(localStorage.getItem("db_usuarios") || "{}");
-        if (tipo === "register") {
-            const rawNombre = document.getElementById("reg-username-public").value;
-            const normNombre = normalizarNombreUsuario(rawNombre);
-            const errNom = validarNombreUsuarioPublico(normNombre);
-            if (errNom) {
-                return Swal.fire({ title: "Nombre público", text: errNom, icon: "warning", ...swalBase });
-            }
-            if (!nombreUsuarioLocalDisponible(normNombre)) {
-                return Swal.fire({
-                    title: "Nombre ya en uso",
-                    text: "Elegí otro nombre público; en este dispositivo ya está tomado.",
-                    icon: "warning",
-                    ...swalBase
-                });
-            }
-            const pass2 = document.getElementById("reg-pass-confirm").value;
-            if (password !== pass2) {
-                return Swal.fire({
-                    title: "Las contraseñas no coinciden",
-                    text: "Repetí exactamente la misma contraseña.",
-                    icon: "warning",
-                    ...swalBase
-                });
-            }
-            const errPw = validarPasswordRegistro(password);
-            if (errPw) {
-                return Swal.fire({ title: "Contraseña", text: errPw, icon: "warning", ...swalBase });
-            }
-            if (usuarios[email]) {
-                return Swal.fire({
-                    title: "Correo ya registrado",
-                    text: "Ese email ya tiene cuenta en este navegador. Iniciá sesión o usá otro correo.",
-                    icon: "warning",
-                    ...swalBase
-                });
-            }
-            usuarios[email] = { password, username: normNombre };
-            localStorage.setItem("db_usuarios", JSON.stringify(usuarios));
-            inicializar();
-            localStorage.setItem("figuritas_" + email, JSON.stringify(figuritas));
-            await Swal.fire({
-                title: "Cuenta creada",
-                text: "Ahora iniciá sesión con el mismo correo y contraseña.",
-                icon: "success",
-                ...swalBase
-            });
-            toggleAuth();
-            return;
-        }
-        if (usuarios[email] && usuarios[email].password === password) {
-            usuarioActual = email;
-            cerrarLoginOverlay();
-            await cargarDatosUsuario();
-            aplicarSesionActivaUI(true);
-            return Swal.fire({
-                title: "¡Hola de nuevo!",
-                text: "Sesión iniciada.",
-                icon: "success",
-                timer: 2000,
-                showConfirmButton: false,
-                ...swalBase
-            });
-        }
-        return Swal.fire({
-            title: "No encontramos la cuenta",
-            text: "El correo o la contraseña no coinciden. Si no tenés cuenta, creá una desde «Crear cuenta».",
-            icon: "error",
-            ...swalBase
-        });
     }
 
     let _recuperarPasswordEnCurso = false;
