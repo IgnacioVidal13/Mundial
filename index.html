@@ -1064,6 +1064,25 @@
         actualizarTextoChipUsuario();
     }
 
+    async function asegurarAmistadMutuaPorCodigo(code, sb = getSupabase()) {
+        if (!sb || !code || !usuarioActual) return false;
+        try {
+            const { data, error } = await sb.rpc("add_friend_by_code", { p_code: code });
+            if (error) {
+                console.warn("asegurarAmistadMutuaPorCodigo:", error.message || error);
+                return false;
+            }
+            if (vistaActual === "amigos") {
+                amigosCache = [];
+                void cargarAmigos(true);
+            }
+            return !!(data && data.ok);
+        } catch (e) {
+            console.warn("asegurarAmistadMutuaPorCodigo:", e);
+            return false;
+        }
+    }
+
     function aplicarSesionActivaUI(activa) {
         activa = !!activa;
         const vistaBienvenida = document.getElementById("vista-bienvenida");
@@ -1642,6 +1661,9 @@
         cerrarLoginOverlay();
         await cargarDatosUsuario(sb, user);
         aplicarSesionActivaUI(true);
+        setTimeout(() => {
+            if (typeof intentarCruceDesdeURL === "function") void intentarCruceDesdeURL();
+        }, 0);
     }
 
     async function aplicarSesionDesdeAuthData(sb, data) {
@@ -2399,6 +2421,7 @@
                 });
                 return;
             }
+            await asegurarAmistadMutuaPorCodigo(code, sb);
             await ejecutarCruceConPayload(data.payload);
             return;
         }
@@ -2445,6 +2468,7 @@
         if (code && sb) {
             const { data, error } = await sb.rpc("get_album_share", { p_code: code });
             if (error || !data || !data.ok || !data.payload) return null;
+            await asegurarAmistadMutuaPorCodigo(code, sb);
             return data.payload;
         }
         return extraerPayloadAlbumDeTexto(t);
@@ -2811,6 +2835,7 @@ document.getElementById("amigo-codigo-input")?.addEventListener("keydown", e => 
 
     (async function initApp() {
         aplicarSesionActivaUI(false);
+        let habiaSesionInicial = false;
         const sb = getSupabase();
         if (sb) {
             initSupabaseAuthListener(sb);
@@ -2819,6 +2844,7 @@ document.getElementById("amigo-codigo-input")?.addEventListener("keydown", e => 
                 if (recoveryProcesado) return;
                 const { data: { session } } = await sb.auth.getSession();
                 if (session && session.user) {
+                    habiaSesionInicial = true;
                     await aplicarSesionSupabase(sb, session.user);
                 } else {
                     inicializar();
@@ -2839,9 +2865,11 @@ document.getElementById("amigo-codigo-input")?.addEventListener("keydown", e => 
             mostrar("todas");
             aplicarSesionActivaUI(false);
         }
-        setTimeout(() => {
-            if (typeof intentarCruceDesdeURL === "function") void intentarCruceDesdeURL();
-        }, 0);
+        if (!habiaSesionInicial) {
+            setTimeout(() => {
+                if (typeof intentarCruceDesdeURL === "function") void intentarCruceDesdeURL();
+            }, 0);
+        }
         if (location.protocol === "file:")
             document.getElementById("aviso-file-protocol")?.classList.remove("hidden");
     })();
