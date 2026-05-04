@@ -228,6 +228,92 @@ $$;
 revoke all on function public.username_disponible(text) from public;
 grant execute on function public.username_disponible(text) to anon, authenticated;
 
+-- Solicitudes manuales de recuperacion de contraseña.
+create table if not exists public.password_reset_requests (
+  id uuid primary key default extensions.gen_random_uuid(),
+  request_code text not null unique,
+  email text not null,
+  username text,
+  note text,
+  status text not null default 'pending',
+  created_at timestamptz not null default now(),
+  resolved_at timestamptz
+);
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint
+    where conname = 'password_reset_requests_code_format'
+      and conrelid = 'public.password_reset_requests'::regclass
+  ) then
+    alter table public.password_reset_requests
+      add constraint password_reset_requests_code_format
+      check (request_code ~ '^[A-F0-9]{10}$') not valid;
+  end if;
+
+  if not exists (
+    select 1 from pg_constraint
+    where conname = 'password_reset_requests_email_format'
+      and conrelid = 'public.password_reset_requests'::regclass
+  ) then
+    alter table public.password_reset_requests
+      add constraint password_reset_requests_email_format
+      check (email ~ '^[^@\s]+@[^@\s]+\.[^@\s]+$') not valid;
+  end if;
+end;
+$$;
+
+alter table public.password_reset_requests validate constraint password_reset_requests_code_format;
+alter table public.password_reset_requests validate constraint password_reset_requests_email_format;
+
+alter table public.password_reset_requests enable row level security;
+alter table public.password_reset_requests force row level security;
+
+revoke all on public.password_reset_requests from anon, authenticated;
+
+create or replace function public.submit_password_reset_request(
+  p_email text,
+  p_username text default null,
+  p_note text default null
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_email text := lower(trim(coalesce(p_email, '')));
+  v_username text := lower(trim(coalesce(p_username, '')));
+  v_note text := nullif(trim(coalesce(p_note, '')), '');
+  v_code text;
+begin
+  if v_email !~ '^[^@\s]+@[^@\s]+\.[^@\s]+$' then
+    return jsonb_build_object('ok', false, 'reason', 'invalid_email');
+  end if;
+
+  if v_username <> '' and v_username !~ '^[a-z0-9_]{3,20}$' then
+    return jsonb_build_object('ok', false, 'reason', 'invalid_username');
+  end if;
+
+  loop
+    v_code := upper(substr(encode(extensions.gen_random_bytes(8), 'hex'), 1, 10));
+    exit when not exists (
+      select 1 from public.password_reset_requests r
+      where r.request_code = v_code
+    );
+  end loop;
+
+  insert into public.password_reset_requests (request_code, email, username, note)
+  values (v_code, v_email, nullif(v_username, ''), v_note);
+
+  return jsonb_build_object('ok', true, 'request_code', v_code);
+end;
+$$;
+
+revoke all on function public.submit_password_reset_request(text, text, text) from public;
+grant execute on function public.submit_password_reset_request(text, text, text) to anon, authenticated;
+
 -- Un codigo corto por usuario para QR (payload = string album comprimido).
 -- La tabla no se expone por PostgREST; se escribe/lee solamente via RPC.
 create table if not exists public.album_intercambios (
@@ -504,7 +590,7 @@ as $$
   left join public.profiles p on p.id = a.friend_id
   left join public.album_intercambios i
     on i.owner_id = a.friend_id
-   and i.expires_at > now()
+  and i.expires_at > now()
   where a.owner_id = auth.uid();
 $$;
 
@@ -519,7 +605,7 @@ set search_path = public
 as $$
   delete from public.album_amigos
   where (owner_id = auth.uid() and friend_id = p_friend_id)
-     or (owner_id = p_friend_id and friend_id = auth.uid())
+    or (owner_id = p_friend_id and friend_id = auth.uid())
   returning true;
 $$;
 

@@ -412,7 +412,8 @@
             gap: 10px;
         }
         .btn-contacto,
-        .btn-instrucciones {
+        .btn-instrucciones,
+        .btn-eliminar-cuenta {
             background: #1f7ae0;
             color: #fff;
             border: none;
@@ -424,6 +425,9 @@
         .btn-instrucciones {
             background: #ffd700;
             color: #111;
+        }
+        .btn-eliminar-cuenta {
+            background: #b71c1c;
         }
         .contact-email-box {
             display: inline-block;
@@ -660,7 +664,7 @@
                 <input type="checkbox" id="recordar-dispositivo-login" checked>
                 <span>Recordar este dispositivo</span>
             </label>
-            <p style="text-align: center; margin: 4px 0 8px;"><a href="#" class="link-auth" onclick="event.preventDefault(); recuperarPassword();">¿Olvidaste tu contraseña?</a></p>
+            <p style="text-align: center; margin: 4px 0 8px;"><a href="#" class="link-auth" onclick="event.preventDefault(); abrirRecuperarPasswordManual();">¿Olvidaste tu contraseña?</a></p>
             <button type="button" id="btn-login-submit" onclick="auth('login')" style="width: 100%; padding: 12px; background: rgb(187, 255, 255); border: none; font-weight: bold; cursor: pointer; margin-top: 6px;">Entrar</button>
             <p style="color: #666; margin-top: 16px; font-size: 14px;">¿Todavía no tenés cuenta? <a href="#" onclick="event.preventDefault(); toggleAuth();" style="color: #b8860b; font-weight: bold;">Crear cuenta</a></p>
         </div>
@@ -727,9 +731,14 @@
     <div class="busqueda-container">
         <input type="text" id="busqueda" placeholder="Código de país (ej: ARG)...">
         <button id="btnBuscar" onclick="buscarPais()">Buscar</button>
-        <button onclick="activarVoz()" style="background: #96d6ea; color: white; border-radius: 50%; width: 50px; height: 50px; border: none; cursor: pointer;">
-    IA
-</button>
+        <button
+            onclick="activarVoz()"
+            title="Cambio por voz: decí 'ARG 13 por BRA 05'. Formato: codigo numero por codigo numero. Ejemplos: 'arg 13 por col 5' o 'fwc 1 por kor 3'."
+            aria-label="Activar cambio por voz"
+            style="background: #96d6ea; color: white; border-radius: 50%; width: 50px; height: 50px; border: none; cursor: pointer;"
+        >
+            IA
+        </button>
     </div>
 
     <section id="todas"></section>
@@ -783,12 +792,13 @@
     <footer class="site-footer">
         <div>
             <strong>Contacto</strong><br>
-            <small>Escribí un mensaje y se enviará automáticamente a soporte.</small>
+            <small>Escribí a soporte o borrá tu cuenta desde acá.</small>
             <small>© 2026 Mi Lista Mundialista™ · All rights reserved.</small>
         </div>
         <div class="footer-actions">
             <button type="button" class="btn-instrucciones" onclick="abrirInstruccionesUso()">Instrucciones de uso</button>
             <button type="button" class="btn-contacto" onclick="abrirContacto()">Contactar</button>
+            <button type="button" class="btn-eliminar-cuenta" onclick="eliminarCuenta()">Eliminar cuenta</button>
         </div>
     </footer>
     </div>
@@ -899,17 +909,6 @@
         return sbClient;
     }
 
-    function obtenerAuthRedirectUrl() {
-        try {
-            const u = new URL(window.location.href);
-            u.hash = "";
-            u.search = "";
-            return u.toString();
-        } catch (e) {
-            return window.location.href.split("#")[0].split("?")[0];
-        }
-    }
-
     async function obtenerBearerSesionSupabase(sb) {
         if (!sb || !sb.auth || !sb.auth.getSession) return "";
         try {
@@ -958,7 +957,7 @@
                     <ul>
                         <li>Usá <strong>Iniciar sesión</strong> para entrar o crear una cuenta nueva.</li>
                         <li>Al registrarte, elegí un <strong>nombre público</strong>: tus amigos lo ven al comparar álbumes.</li>
-                        <li>Si olvidaste la contraseña, usá el enlace de recuperación del formulario de inicio.</li>
+                        <li>Si olvidaste la contraseña, usá la opción de recuperación manual del formulario de inicio.</li>
                     </ul>
 
                     <h3>2. Cargar figuritas</h3>
@@ -1195,11 +1194,9 @@
         const raw = (error && error.message) ? String(error.message) : "Error desconocido";
         const m = raw.toLowerCase();
         if (m.includes("already registered") || m.includes("user already registered") || m.includes("already been registered"))
-            return { title: "Ese correo ya está registrado", text: "Probá iniciar sesión. Si no recordás la contraseña, usá «¿Olvidaste tu contraseña?».", icon: "warning" };
+            return { title: "Ese correo ya está registrado", text: "Probá iniciar sesión. Si no recordás la contraseña, usá la opción de recuperación manual.", icon: "warning" };
         if (m.includes("invalid login credentials") || m.includes("invalid_credentials"))
             return { title: "Correo o contraseña incorrectos", text: "Revisá mayúsculas y que no haya espacios de más. Si acabás de registrarte, puede que falte confirmar el email.", icon: "error" };
-        if (m.includes("email not confirmed"))
-            return { title: "Falta confirmar el correo", text: "Abrí el enlace que te enviamos (revisá carpeta spam). Después podés entrar con tu clave.", icon: "info" };
         if (m.includes("password") && (m.includes("least") || m.includes("short") || m.includes("6")))
             return { title: "Contraseña rechazada", text: "El servidor pide una clave más larga o distinta. Revisá los requisitos en «Crear cuenta».", icon: "warning" };
         if (m.includes("invalid email") || m.includes("email format"))
@@ -1207,21 +1204,12 @@
         if (m.includes("signup_disabled") || m.includes("signups not allowed"))
             return { title: "Registro no disponible", text: "En este proyecto no se aceptan cuentas nuevas por ahora.", icon: "error" };
         if (m.includes("rate limit") || m.includes("too many requests"))
-            return { title: "Demasiados intentos", text: "Esperá un minuto y volvé a probar.", icon: "warning" };
-        return { title: "No se pudo completar", text: raw, icon: "error" };
-    }
-
-    function mensajeRecuperacionPasswordError(error) {
-        const raw = (error && error.message) ? String(error.message) : "Error desconocido";
-        const m = raw.toLowerCase();
-        if (m.includes("rate limit") || m.includes("too many requests")) {
             return {
-                title: "Envio temporalmente bloqueado",
-                text: "Supabase esta limitando los correos de recuperacion para este proyecto. No depende del mail que escribas. Espera un minuto y volve a probar.",
+                title: "Límite de registros",
+                text: "Supabase está limitando los registros de este proyecto. No depende del correo ni de que sea la primera vez. Revisá Auth > Rate Limits en Supabase o desactivá la confirmación de email en el panel de Auth si querés permitir más altas.",
                 icon: "warning"
             };
-        }
-        return mensajeAuthError(error);
+        return { title: "No se pudo completar", text: raw, icon: "error" };
     }
 
     function toggleAuth() {
@@ -1306,7 +1294,6 @@
                         email,
                         password,
                         options: {
-                            emailRedirectTo: obtenerAuthRedirectUrl(),
                             data: { username: normNombre }
                         }
                     });
@@ -1327,8 +1314,8 @@
                     }
 
                     await Swal.fire({
-                        title: "Te enviamos un correo",
-                        html: "Abrí el mensaje y tocá el <strong>enlace de confirmación</strong> para activar la cuenta. Después entrá con tu correo y contraseña.<br><small>(Si no ves el mail, mirá spam.)</small>",
+                        title: "Cuenta creada",
+                        text: "Ya podés entrar con tu correo y contraseña.",
                         icon: "success",
                         ...swalBase
                     });
@@ -1446,269 +1433,149 @@
         }
     }
 
-    let _recuperarPasswordEnCurso = false;
-    async function recuperarPassword() {
-        if (_recuperarPasswordEnCurso) return;
+    function validarEmailBasico(value) {
+        const email = String(value || "").trim().toLowerCase();
+        return !!email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    }
+
+    async function registrarSolicitudRecuperacionManual({ email, username, note }) {
         const sb = getSupabase();
         if (!sb) {
-            return Swal.fire({
-                title: "Recuperación por correo",
-                text: "Esta opción usa Supabase. En modo solo local no hay envío de email: creá otra cuenta o borrá los datos del sitio en el navegador si es tuyo.",
-                icon: "info",
-                ...swalBase
-            });
+            throw new Error("Supabase no está disponible.");
         }
-        const pre = document.getElementById("user-login").value.trim().toLowerCase();
-        const { value: emailIn } = await Swal.fire({
-            title: "Recuperar contraseña",
-            html: "<p style='margin:0 0 12px;text-align:left'>Te enviamos un enlace al correo para elegir una contraseña nueva (revisá spam).</p>",
-            input: "email",
-            inputValue: pre,
-            showCancelButton: true,
-            confirmButtonText: "Enviar enlace",
-            cancelButtonText: "Cancelar",
-            inputValidator: (v) => {
-                if (!v || !String(v).includes("@")) return "Ingresá un correo válido";
-            },
-            ...swalBase
+        const { data, error } = await sb.rpc("submit_password_reset_request", {
+            p_email: String(email || "").trim().toLowerCase(),
+            p_username: String(username || "").trim().toLowerCase(),
+            p_note: String(note || "").trim()
         });
-        if (!emailIn) return;
-        const redirectTo = window.location.href.split("#")[0].split("?")[0];
-        _recuperarPasswordEnCurso = true;
-        try {
-            const { error } = await sb.auth.resetPasswordForEmail(String(emailIn).trim().toLowerCase(), { redirectTo });
-            if (error) {
-                const x = mensajeRecuperacionPasswordError(error);
-                return Swal.fire({ ...x, ...swalBase });
-            }
-        } finally {
-            _recuperarPasswordEnCurso = false;
-        }
-        await Swal.fire({
-            title: "Listo",
-            html: "Si el correo está registrado, <strong>Supabase</strong> envió el enlace. Abrilo en el mismo navegador donde usás el álbum.",
-            icon: "success",
-            ...swalBase
-        });
-    }
-
-    let _recoveryPwdUiAbierta = false;
-    let _recoveryPasswordEnCurso = false;
-    async function pedirNuevaPasswordTrasRecovery(sb = getSupabase()) {
-        if (!sb || _recoveryPwdUiAbierta) return;
-        _recoveryPasswordEnCurso = true;
-        _recoveryPwdUiAbierta = true;
-        const { value: nueva } = await Swal.fire({
-            title: "Elegí una contraseña nueva",
-            html:
-                '<input id="swal-np1" type="password" class="swal2-input" placeholder="Nueva contraseña" style="max-width:100%;box-sizing:border-box">' +
-                '<input id="swal-np2" type="password" class="swal2-input" placeholder="Repetir contraseña" style="max-width:100%;box-sizing:border-box;margin-top:8px">',
-            focusConfirm: false,
-            showCancelButton: true,
-            confirmButtonText: "Guardar",
-            cancelButtonText: "Cancelar",
-            preConfirm: () => {
-                const a = document.getElementById("swal-np1").value;
-                const b = document.getElementById("swal-np2").value;
-                if (a !== b) {
-                    Swal.showValidationMessage("Las contraseñas no coinciden.");
-                    return false;
-                }
-                const err = validarPasswordRegistro(a);
-                if (err) {
-                    Swal.showValidationMessage(err);
-                    return false;
-                }
-                return a;
-            },
-            ...swalBase
-        });
-        if (!nueva) {
-            _recoveryPwdUiAbierta = false;
-            _recoveryPasswordEnCurso = false;
-            return;
-        }
-        const { error } = await sb.auth.updateUser({ password: nueva });
         if (error) {
-            _recoveryPwdUiAbierta = false;
-            _recoveryPasswordEnCurso = false;
-            const x = mensajeAuthError(error);
-            return Swal.fire({ ...x, ...swalBase });
+            throw new Error(error.message || "No se pudo registrar la solicitud.");
         }
-        await Swal.fire({
-            title: "Contraseña actualizada",
-            text: "Ahora inicia sesion con tu nueva contraseña.",
-            icon: "success",
-            ...swalBase
-        });
-        _recoveryPwdUiAbierta = false;
-        return true;
+        return data;
     }
 
-    function obtenerParametroAuthUrl(nombre) {
-        const params = new URLSearchParams(window.location.search);
-        if (params.has(nombre)) return params.get(nombre);
-        const hash = window.location.hash ? window.location.hash.replace(/^#/, "") : "";
-        const hashParams = new URLSearchParams(hash);
-        return hashParams.get(nombre);
+    function textoErrorRecuperacionManual(data) {
+        const reason = data && data.reason ? String(data.reason) : "";
+        if (reason === "invalid_email") return "Ingresá un correo válido.";
+        if (reason === "invalid_username") return "El nombre público no cumple el formato.";
+        return "No se pudo registrar la solicitud.";
     }
 
-    function obtenerDatosAuthUrl() {
-        const datos = {};
-        const params = new URLSearchParams(window.location.search);
-        const hash = window.location.hash ? window.location.hash.replace(/^#/, "") : "";
-        const hashParams = new URLSearchParams(hash);
-        ["code", "type", "access_token", "refresh_token", "token_hash", "token_type", "expires_in", "expires_at", "error", "error_description"].forEach((clave) => {
-            const value = params.get(clave) || hashParams.get(clave);
-            if (value !== null && value !== undefined && value !== "") datos[clave] = value;
-        });
-        return datos;
-    }
-
-    function urlEsRecoveryPassword() {
-        const datos = obtenerDatosAuthUrl();
-        return datos.type === "recovery" || datos.type === "password_recovery" || !!datos.token_hash;
-    }
-
-    function urlTieneCallbackAuth() {
-        const datos = obtenerDatosAuthUrl();
-        return !!datos.code || !!datos.access_token || !!datos.refresh_token || !!datos.token_hash;
-    }
-
-    function urlEsConfirmacionRegistro() {
-        const type = obtenerParametroAuthUrl("type");
-        return type === "signup" || type === "email" || type === "email_confirmation";
-    }
-
-    function limpiarParametrosRecoveryUrl() {
+    async function copiarTextoAlPortapapeles(texto, okMsg = "Copiado") {
+        const value = String(texto || "");
         try {
-            const u = new URL(window.location.href);
-            ["code", "type", "access_token", "refresh_token", "expires_in", "expires_at", "token_type", "token_hash", "error", "error_description"].forEach(p => u.searchParams.delete(p));
-            u.hash = "";
-            window.history.replaceState({}, document.title, u.toString());
-        } catch (e) {
-            console.error(e);
-        }
-    }
-
-    async function procesarRecoveryDesdeUrl(sb = getSupabase()) {
-        if (!sb || !urlEsRecoveryPassword()) return false;
-        const datos = obtenerDatosAuthUrl();
-        try {
-            if (datos.code && typeof sb.auth.exchangeCodeForSession === "function") {
-                const { error } = await sb.auth.exchangeCodeForSession(datos.code);
-                if (error) {
-                    const x = mensajeAuthError(error);
-                    await Swal.fire({ ...x, ...swalBase });
-                    return true;
-                }
-            } else if (datos.token_hash && typeof sb.auth.verifyOtp === "function") {
-                const { error } = await sb.auth.verifyOtp({
-                    token_hash: datos.token_hash,
-                    type: "recovery"
-                });
-                if (error) {
-                    const x = mensajeAuthError(error);
-                    await Swal.fire({ ...x, ...swalBase });
-                    return true;
-                }
-            } else if (datos.access_token && datos.refresh_token && typeof sb.auth.setSession === "function") {
-                const { error } = await sb.auth.setSession({
-                    access_token: datos.access_token,
-                    refresh_token: datos.refresh_token
-                });
-                if (error) {
-                    const x = mensajeAuthError(error);
-                    await Swal.fire({ ...x, ...swalBase });
-                    return true;
-                }
-            }
-            const actualizada = await pedirNuevaPasswordTrasRecovery(sb);
-            limpiarParametrosRecoveryUrl();
-            if (actualizada) {
-                await cerrarSesionTemporalRecovery(sb);
-                abrirLogin();
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                await navigator.clipboard.writeText(value);
             } else {
-                inicializar();
-                renderMejorado();
-                mostrar("todas");
-                aplicarSesionActivaUI(false);
+                const input = document.createElement("input");
+                input.value = value;
+                document.body.appendChild(input);
+                input.select();
+                document.execCommand("copy");
+                document.body.removeChild(input);
             }
+            toast(okMsg);
             return true;
         } catch (error) {
-            console.error("procesarRecoveryDesdeUrl:", error);
-            await Swal.fire({
-                title: "No se pudo restablecer",
-                text: error && error.message ? error.message : String(error),
-                icon: "error",
-                ...swalBase
-            });
-            return true;
-        }
-    }
-
-    async function procesarConfirmacionAuthDesdeUrl(sb = getSupabase()) {
-        if (!sb || urlEsRecoveryPassword() || !urlTieneCallbackAuth()) return false;
-        const datos = obtenerDatosAuthUrl();
-        try {
-            if (datos.code && typeof sb.auth.exchangeCodeForSession === "function") {
-                const { error } = await sb.auth.exchangeCodeForSession(datos.code);
-                if (error) console.warn("confirmacion auth:", error.message || error);
-            } else if (datos.token_hash && typeof sb.auth.verifyOtp === "function") {
-                const { error } = await sb.auth.verifyOtp({
-                    token_hash: datos.token_hash,
-                    type: "email"
-                });
-                if (error) console.warn("confirmacion auth token_hash:", error.message || error);
-            }
-            const { data: { session } } = await sb.auth.getSession();
-            limpiarParametrosRecoveryUrl();
-            if (session && session.user) {
-                await aplicarSesionSupabase(sb, session.user);
-                if (urlEsConfirmacionRegistro()) {
-                    await Swal.fire({
-                        title: "Correo confirmado",
-                        text: "Tu cuenta ya está activa.",
-                        icon: "success",
-                        timer: 2200,
-                        showConfirmButton: false,
-                        ...swalBase
-                    });
-                }
-            } else if (urlEsConfirmacionRegistro()) {
-                abrirLogin();
-                await Swal.fire({
-                    title: "Correo confirmado",
-                    text: "Ahora iniciá sesión con tu correo y contraseña.",
-                    icon: "success",
-                    ...swalBase
-                });
-            }
-            return true;
-        } catch (error) {
-            console.error("procesarConfirmacionAuthDesdeUrl:", error);
-            limpiarParametrosRecoveryUrl();
+            console.warn("copiarTextoAlPortapapeles:", error);
+            toast("No se pudo copiar");
             return false;
         }
     }
 
-    async function cerrarSesionTemporalRecovery(sb = getSupabase()) {
-        usuarioActual = "";
-        nombreVisibleUsuario = "";
-        supabaseUserActual = null;
+    async function abrirRecuperarPasswordManual() {
+        const preEmail = document.getElementById("user-login")?.value.trim().toLowerCase() || "";
+        const preNombre = nombreVisibleUsuario || "";
+        const { value, isConfirmed } = await Swal.fire({
+            title: "Recuperar contraseña",
+            html: `
+                <div style="text-align:left;line-height:1.45">
+                    <p>Esto no manda un mail automático. Se registra una solicitud para que soporte lo resuelva manualmente.</p>
+                    <input id="reset-email" type="email" class="swal2-input" placeholder="Correo electrónico" value="${preEmail.replace(/"/g, "&quot;")}">
+                    <input id="reset-username" type="text" class="swal2-input" placeholder="Nombre público (opcional)" value="${preNombre.replace(/"/g, "&quot;")}">
+                    <textarea id="reset-note" class="swal2-textarea" placeholder="Detalle opcional: qué pasa, cuándo fue la última vez que entraste, etc."></textarea>
+                    <p style="margin:10px 0 0;font-size:13px;opacity:.9">Después te vamos a mostrar un código de solicitud y el mail de soporte para que lo copies.</p>
+                </div>
+            `,
+            focusConfirm: false,
+            showCancelButton: true,
+            confirmButtonText: "Enviar solicitud",
+            cancelButtonText: "Cancelar",
+            preConfirm: () => {
+                const email = document.getElementById("reset-email")?.value.trim().toLowerCase() || "";
+                const username = document.getElementById("reset-username")?.value.trim().toLowerCase() || "";
+                const note = document.getElementById("reset-note")?.value.trim() || "";
+                if (!validarEmailBasico(email)) {
+                    Swal.showValidationMessage("Ingresá un correo válido.");
+                    return false;
+                }
+                if (username && !/^[a-z0-9_]{3,20}$/.test(username)) {
+                    Swal.showValidationMessage("El nombre público debe tener 3 a 20 caracteres: letras, números y guión bajo.");
+                    return false;
+                }
+                return { email, username, note };
+            },
+            ...swalBase
+        });
+        if (!isConfirmed || !value) return;
+
         try {
-            if (sb) {
-                const { error } = await sb.auth.signOut();
-                if (error) console.warn("cerrarSesionTemporalRecovery:", error.message || error);
+            Swal.fire({
+                title: "Registrando solicitud...",
+                allowOutsideClick: false,
+                didOpen: () => Swal.showLoading(),
+                showConfirmButton: false,
+                ...swalBase
+            });
+            const data = await registrarSolicitudRecuperacionManual(value);
+            if (!data || data.ok !== true) {
+                throw new Error(textoErrorRecuperacionManual(data));
             }
+            const requestCode = String(data.request_code || "").trim();
+            Swal.close();
+            await Swal.fire({
+                title: "Solicitud creada",
+                html: `
+                    <div style="text-align:left;line-height:1.45">
+                        <p>Guardamos tu pedido manualmente.</p>
+                        <p><strong>Código de solicitud:</strong></p>
+                        <div class="contact-email-box">${requestCode || "SIN CODIGO"}</div>
+                        <p style="margin-top:12px"><strong>Soporte:</strong></p>
+                        <div class="contact-email-box">${SUPPORT_EMAIL}</div>
+                        <p style="margin-top:8px">Mandale a soporte tu correo, tu nombre público y este código.</p>
+                    </div>
+                `,
+                showCancelButton: true,
+                confirmButtonText: "Copiar código",
+                cancelButtonText: "Cerrar",
+                didOpen: () => {
+                    const btn = Swal.getConfirmButton();
+                    const mailBox = Swal.getPopup()?.querySelector ? Swal.getPopup().querySelector(".contact-email-box:last-of-type") : null;
+                    if (btn) {
+                        btn.onclick = async (ev) => {
+                            ev.preventDefault();
+                            await copiarTextoAlPortapapeles(requestCode || "", "Código copiado");
+                        };
+                    }
+                    if (mailBox) {
+                        mailBox.style.cursor = "pointer";
+                        mailBox.title = "Tocá para copiar el correo";
+                        mailBox.onclick = async () => {
+                            await copiarEmailSoporte();
+                        };
+                    }
+                },
+                ...swalBase
+            });
         } catch (error) {
-            console.warn("cerrarSesionTemporalRecovery:", error);
+            console.error("abrirRecuperarPasswordManual:", error);
+            await Swal.fire({
+                title: "No se pudo registrar",
+                text: error && error.message ? error.message : "Volvé a intentar.",
+                icon: "error",
+                ...swalBase
+            });
         }
-        inicializar();
-        renderMejorado();
-        mostrar("todas");
-        aplicarSesionActivaUI(false);
-        _recoveryPasswordEnCurso = false;
     }
 
     async function guardarProgresoSupabase() {
@@ -1846,6 +1713,94 @@
         }
     }
 
+    async function eliminarCuenta() {
+        const sb = getSupabase();
+        if (!sb) {
+            return Swal.fire({
+                title: "No disponible",
+                text: "Supabase no está disponible en este navegador.",
+                icon: "error",
+                ...swalBase
+            });
+        }
+        const confirmacion = await Swal.fire({
+            title: "Eliminar cuenta",
+            html: `
+                <div style="text-align:left;line-height:1.5">
+                    <p>Esto borra tu cuenta y tus datos asociados.</p>
+                    <p>Escribí <strong>ELIMINAR</strong> para confirmar.</p>
+                </div>
+            `,
+            input: "text",
+            inputPlaceholder: "ELIMINAR",
+            showCancelButton: true,
+            confirmButtonText: "Borrar cuenta",
+            cancelButtonText: "Cancelar",
+            inputValidator: (value) => {
+                if (String(value || "").trim().toUpperCase() !== "ELIMINAR") {
+                    return "Escribí ELIMINAR para continuar.";
+                }
+            },
+            ...swalBase
+        });
+        if (!confirmacion.isConfirmed) return;
+
+        const { data: sessionData } = await sb.auth.getSession();
+        const session = sessionData && sessionData.session ? sessionData.session : null;
+        if (!session || !session.access_token) {
+            return Swal.fire({
+                title: "Sin sesión",
+                text: "Volvé a iniciar sesión e intentá de nuevo.",
+                icon: "warning",
+                ...swalBase
+            });
+        }
+
+        try {
+            Swal.fire({
+                title: "Borrando cuenta...",
+                allowOutsideClick: false,
+                didOpen: () => Swal.showLoading(),
+                showConfirmButton: false,
+                ...swalBase
+            });
+            const res = await fetch(`${SUPABASE_URL.replace(/\/$/, "")}/functions/v1/delete-account`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "apikey": SUPABASE_ANON_KEY,
+                    "Authorization": `Bearer ${session.access_token}`
+                }
+            }).catch((error) => {
+                throw new Error("No se pudo conectar con la función delete-account. Revisá que esté desplegada en Supabase y que tenga verify_jwt = false.");
+            });
+            const data = await res.json().catch(() => null);
+            if (!res.ok || !data || data.ok !== true) {
+                const msg = (data && (data.detail || data.error)) || "No se pudo borrar la cuenta.";
+                if ((data && data.error) === "missing_config") {
+                    throw new Error("Faltan los secrets de la función delete-account en Supabase. Deben existir SUPABASE_SERVICE_ROLE_KEY y SUPABASE_URL.");
+                }
+                throw new Error(msg);
+            }
+            Swal.close();
+            limpiarSesionSupabase();
+            await Swal.fire({
+                title: "Cuenta eliminada",
+                text: "La cuenta quedó borrada.",
+                icon: "success",
+                ...swalBase
+            });
+        } catch (error) {
+            console.error("eliminarCuenta:", error);
+            await Swal.fire({
+                title: "No se pudo borrar",
+                text: error && error.message ? error.message : "Volvé a intentar.",
+                icon: "error",
+                ...swalBase
+            });
+        }
+    }
+
     let _authListenerReady = false;
     async function aplicarSesionSupabase(sb, user) {
         if (!sb || !user) return;
@@ -1897,21 +1852,11 @@
 
     async function manejarAuthStateChange(sb, event, session) {
         try {
-            if (event === "PASSWORD_RECOVERY") {
-                const actualizada = await pedirNuevaPasswordTrasRecovery(sb);
-                if (actualizada) {
-                    limpiarParametrosRecoveryUrl();
-                    await cerrarSesionTemporalRecovery(sb);
-                    abrirLogin();
-                }
-                return;
-            }
-            if (_recoveryPasswordEnCurso) return;
             if (event === "TOKEN_REFRESHED" && session && session.user) {
                 supabaseUserActual = session.user;
                 return;
             }
-            if (["INITIAL_SESSION", "SIGNED_IN", "USER_UPDATED", "PASSWORD_RECOVERY"].includes(event) && session && session.user) {
+            if (["INITIAL_SESSION", "SIGNED_IN", "USER_UPDATED"].includes(event) && session && session.user) {
                 await aplicarSesionSupabase(sb, session.user);
                 return;
             }
@@ -3030,18 +2975,12 @@ document.getElementById("amigo-codigo-input")?.addEventListener("keydown", e => 
 
     (async function initApp() {
         aplicarSesionActivaUI(false);
-        let habiaSesionInicial = false;
         const sb = getSupabase();
         if (sb) {
             initSupabaseAuthListener(sb);
             try {
-                const recoveryProcesado = await procesarRecoveryDesdeUrl(sb);
-                if (recoveryProcesado) return;
-                const confirmacionProcesada = await procesarConfirmacionAuthDesdeUrl(sb);
-                if (confirmacionProcesada) return;
                 const { data: { session } } = await sb.auth.getSession();
                 if (session && session.user) {
-                    habiaSesionInicial = true;
                     await aplicarSesionSupabase(sb, session.user);
                 } else {
                     inicializar();
@@ -3063,11 +3002,6 @@ document.getElementById("amigo-codigo-input")?.addEventListener("keydown", e => 
             aplicarSesionActivaUI(false);
         }
         toastFooterAyuda();
-        if (!habiaSesionInicial) {
-            setTimeout(() => {
-                if (typeof intentarCruceDesdeURL === "function") void intentarCruceDesdeURL();
-            }, 0);
-        }
         if (location.protocol === "file:")
             document.getElementById("aviso-file-protocol")?.classList.remove("hidden");
     })();
@@ -3100,25 +3034,35 @@ const diccionarioPaises = {
     "croacia": "CRO", "ghana": "GHA", "panamá": "PAN", "panama": "PAN"
 };
 
-function activarVoz() {
-    if (!requiereSesionParaEditar()) return;
-    if (!recognition) {
-        return Swal.fire({
-            title: "No disponible",
+    function activarVoz() {
+        if (!requiereSesionParaEditar()) return;
+        if (!recognition) {
+            return Swal.fire({
+                title: "No disponible",
             text: "Tu navegador no soporta reconocimiento de voz (probá Chrome en escritorio o Android).",
             icon: "info",
             background: "#1a1a1a",
             color: "#ffffff"
         });
     }
-    try {
-        recognition.start();
-        clearTimeout(timerSeguridad);
+        try {
+            recognition.start();
+            clearTimeout(timerSeguridad);
+            Swal.fire({
+                title: "IA activa",
+                text: "Sirve para hacer el cambio automáticamente. Formato: ARG 13 por BRA 05",
+                icon: "info",
+                toast: true,
+                position: "bottom",
+                timer: 3000,
+                showConfirmButton: false,
+                ...swalBase
+            });
 
-        timerSeguridad = setTimeout(() => {
-            recognition.stop();
-            Swal.fire({ title: "Micrófono apagado", icon: "warning", toast: true, position: "top-end", timer: 2000, showConfirmButton: false });
-        }, 10000);
+            timerSeguridad = setTimeout(() => {
+                recognition.stop();
+                Swal.fire({ title: "Micrófono apagado", icon: "warning", toast: true, position: "top-end", timer: 2000, showConfirmButton: false });
+            }, 10000);
 
         Swal.fire({ title: "Escuchando...", icon: "info", showConfirmButton: false, timer: 1500, toast: true, position: "top" });
     } catch (e) {
