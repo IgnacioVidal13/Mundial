@@ -50,6 +50,7 @@
         .tengo { background: #4CAF50; color: white; }
         .repetidas { background: #FFC107; color: #333; }
         .faltan { background: #F44336; color: white; }
+        .favoritas { background: #8e44ad; color: white; }
         .pdf { background: #ffffff; color: #ff0000; }
         /* --- FONDO DINÁMICO --- */
         main {
@@ -650,6 +651,7 @@
         <button class="tengo" onclick="mostrar('tengo')">Pegadas</button>
         <button class="repetidas" onclick="mostrar('repetidas')">Repetidas</button>
         <button class="faltan" onclick="mostrar('faltan')">Faltan</button>
+        <button class="favoritas" onclick="mostrar('favoritas')">Favoritas</button>
         <button class="todas" onclick="mostrar('amigos')">Amigos</button>
         <button class="pdf" onclick="generarPDF()">Descargar PDF</button>
     </nav>
@@ -681,55 +683,50 @@
 </button>
     </div>
 
-    <!-- Sección para que otros me escaneen -->
-<div id="mi-qr-seccion">
-    <h3>Mi código de intercambio</h3>
-    <p id="aviso-file-protocol" class="hidden">Estás abriendo la página como <strong>archivo</strong> (ruta que empieza con <code>file://</code>). En muchos celulares el QR <strong>no abre bien</strong> el cruce. Subí la carpeta a un hosting gratis o usá "Copiar enlace" y mandá el link.</p>
-    <p>Usa tu código único o QR para intercambiar figus en sus álbumes.</p>
-    <div id="qrcode" aria-label="Código QR de intercambio"></div>
-    <div id="enlace-intercambio-wrap">
-        <div id="mi-codigo-display" class="hidden" aria-live="polite">
-            <span class="codigo-label">Código de intercambio</span>
-            <strong id="mi-codigo-texto"></strong>
-        </div>
-        <button type="button" class="btn-copiar" onclick="copiarEnlaceIntercambio()">Copiar código</button>
-    </div>
-    <div id="cruce-sugerencia" class="amigo-detalle hidden"></div>
-
-</div>
-
-<!-- Buscador manual por código -->
-<div id="buscar-amigo">
-    <input type="text" id="codigo-input" placeholder="Pegá el código">
-    <button onclick="procesarIntercambioManual()">Comparar</button>
-</div>
-
-    <div id="panel-cruce-intercambio" aria-live="polite">
-        <h3 id="cruce-titulo">Cruce de intercambio</h3>
-        <p id="cruce-subtitulo" style="margin:0 0 12px;opacity:.9;font-size:14px;"></p>
-        <div class="cruce-grid">
-            <div class="cruce-col yo">
-                <h4>Repetidas tuyas que le sirven a tu amigo</h4>
-                <div class="lista-cruce" id="cruce-yo-le-doy"></div>
-            </div>
-            <div class="cruce-col el">
-                <h4>Repetidas de tu amigo que te sirven a vos</h4>
-                <div class="lista-cruce" id="cruce-el-me-da"></div>
-            </div>
-        </div>
-        <div class="resumen-cruce" id="cruce-resumen"></div>
-        <button type="button" class="btn-cerrar-cruce" onclick="ocultarPanelCruce()">Ocultar panel</button>
-    </div>
-
     <section id="todas"></section>
     <section id="tengo" class="hidden"></section>
     <section id="repetidas" class="hidden"></section>
     <section id="faltan" class="hidden"></section>
+    <section id="favoritas" class="hidden"></section>
     <section id="amigos" class="hidden">
         <div class="amigos-toolbar">
             <input type="text" id="amigo-codigo-input" placeholder="Código de amigo" maxlength="14" autocomplete="off">
             <button type="button" onclick="agregarAmigoPorCodigo()">Agregar amigo</button>
             <button type="button" onclick="cargarAmigos(true)">Actualizar</button>
+        </div>
+        <div id="mi-qr-seccion">
+            <h3>Mi código de intercambio</h3>
+            <p id="aviso-file-protocol" class="hidden">Estás abriendo la página como <strong>archivo</strong> (ruta que empieza con <code>file://</code>). En muchos celulares el QR <strong>no abre bien</strong> el cruce. Subí la carpeta a un hosting gratis o usá "Copiar enlace" y mandá el link.</p>
+            <p>Usa tu código único o QR para intercambiar figus en sus álbumes.</p>
+            <div id="qrcode" aria-label="Código QR de intercambio"></div>
+            <div id="enlace-intercambio-wrap">
+                <div id="mi-codigo-display" class="hidden" aria-live="polite">
+                    <span class="codigo-label">Código de intercambio</span>
+                    <strong id="mi-codigo-texto"></strong>
+                </div>
+                <button type="button" class="btn-copiar" onclick="copiarEnlaceIntercambio()">Copiar código</button>
+            </div>
+            <div id="cruce-sugerencia" class="amigo-detalle hidden"></div>
+        </div>
+        <div id="buscar-amigo">
+            <input type="text" id="codigo-input" placeholder="Pegá el código">
+            <button onclick="procesarIntercambioManual()">Comparar</button>
+        </div>
+        <div id="panel-cruce-intercambio" aria-live="polite">
+            <h3 id="cruce-titulo">Cruce de intercambio</h3>
+            <p id="cruce-subtitulo" style="margin:0 0 12px;opacity:.9;font-size:14px;"></p>
+            <div class="cruce-grid">
+                <div class="cruce-col yo">
+                    <h4>Repetidas tuyas que le sirven a tu amigo</h4>
+                    <div class="lista-cruce" id="cruce-yo-le-doy"></div>
+                </div>
+                <div class="cruce-col el">
+                    <h4>Repetidas de tu amigo que te sirven a vos</h4>
+                    <div class="lista-cruce" id="cruce-el-me-da"></div>
+                </div>
+            </div>
+            <div class="resumen-cruce" id="cruce-resumen"></div>
+            <button type="button" class="btn-cerrar-cruce" onclick="ocultarPanelCruce()">Ocultar panel</button>
         </div>
         <div id="amigos-lista"></div>
         <div id="amigo-detalle" class="amigo-detalle hidden"></div>
@@ -751,6 +748,7 @@
 <script>
     const SUPABASE_URL = "https://ejmztjclypvlonkvvbxy.supabase.co";
     const SUPABASE_ANON_KEY = "sb_publishable_Rmpo2vOz1dnPAy54uEq9BQ_BcNVJNNR";
+    const SUPPORT_EMAIL = "contactosoportelista@gmail.com";
 
     if (!window.Swal) {
         window.Swal = {
@@ -841,19 +839,28 @@
         if (!sb) {
             throw new Error("Supabase no está disponible.");
         }
+        const anonKey = String(SUPABASE_ANON_KEY || "").trim();
         const url = `${SUPABASE_URL.replace(/\/$/, "")}/functions/v1/contact-support`;
-        const res = await fetch(url, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-                email,
-                mensaje,
-                usuario: usuarioActual || "",
-                nombre: obtenerNombreParaAmigos()
-            })
-        });
+        let res;
+        try {
+            res = await fetch(url, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "apikey": anonKey,
+                    "Authorization": `Bearer ${anonKey}`
+                },
+                body: JSON.stringify({
+                    email,
+                    mensaje,
+                    usuario: usuarioActual || "",
+                    nombre: obtenerNombreParaAmigos()
+                })
+            });
+        } catch (error) {
+            console.error("enviarContactoSoporte fetch:", error);
+            throw new Error("No se pudo conectar con soporte. Revisá que la función contact-support esté desplegada en Supabase.");
+        }
         let data = null;
         try {
             data = await res.json();
@@ -861,9 +868,29 @@
             data = null;
         }
         if (!res.ok || !data || data.ok !== true) {
-            throw new Error((data && data.error) || "No se pudo enviar el mensaje.");
+            const errores = {
+                missing_resend_key: "Falta configurar RESEND_API_KEY en Supabase.",
+                invalid_email: "El correo no parece válido.",
+                empty_message: "Escribí un mensaje.",
+                resend_error: "Resend rechazó el envío. Revisá la configuración del remitente.",
+                method_not_allowed: "Método no permitido por la función de soporte."
+            };
+            if (res.status === 404) {
+                throw new Error("La función contact-support no está desplegada en Supabase.");
+            }
+            throw new Error(errores[data && data.error] || (data && data.error) || "No se pudo enviar el mensaje.");
         }
         return data;
+    }
+
+    function abrirEmailSoporte({ email, mensaje }) {
+        const asunto = encodeURIComponent("Contacto desde Mi Lista Mundialista");
+        const cuerpo = encodeURIComponent(
+            `Correo: ${email}\n` +
+            `Usuario: ${obtenerNombreParaAmigos()} ${usuarioActual ? `(${usuarioActual})` : ""}\n\n` +
+            `${mensaje}`
+        );
+        window.location.href = `mailto:${SUPPORT_EMAIL}?subject=${asunto}&body=${cuerpo}`;
     }
 
     function abrirInstruccionesUso() {
@@ -958,12 +985,20 @@
                 ...swalBase
             });
         } catch (error) {
-            Swal.fire({
+            const errorMessage = error.message || "Revisá el formulario y volvé a intentar.";
+            const puedeUsarEmail = /conectar|desplegada|No se pudo enviar/.test(errorMessage);
+            const result = await Swal.fire({
                 title: "No se pudo enviar",
-                text: error.message || "Revisá el formulario y volvé a intentar.",
+                text: puedeUsarEmail
+                    ? "El envío automático no está disponible. Podés abrir tu correo con el mensaje ya armado."
+                    : errorMessage,
                 icon: "error",
+                showCancelButton: puedeUsarEmail,
+                confirmButtonText: puedeUsarEmail ? "Abrir email" : "Entendido",
+                cancelButtonText: "Cancelar",
                 ...swalBase
             });
+            if (puedeUsarEmail && result.isConfirmed) abrirEmailSoporte(value);
         }
     }
 
@@ -2417,11 +2452,14 @@
 
     function mostrar(seccion) {
         vistaActual = seccion;
-        ["todas", "tengo", "repetidas", "faltan", "amigos"].forEach(id => {
+        ["todas", "tengo", "repetidas", "faltan", "favoritas", "amigos"].forEach(id => {
             document.getElementById(id).classList.add("hidden");
         });
         document.getElementById(seccion).classList.remove("hidden");
-        if (seccion === "amigos") void cargarAmigos();
+        if (seccion === "amigos") {
+            void cargarAmigos();
+            if (typeof generarInterfazCompartir === "function") void generarInterfazCompartir();
+        }
     }
 
     function crearBloquePais(codigo) {
@@ -2501,6 +2539,7 @@ document.getElementById("amigo-codigo-input")?.addEventListener("keydown", e => 
     let _refreshQrTimer;
     function scheduleRefreshQR() {
         if (typeof usuarioActual === "undefined" || !usuarioActual) return;
+        if (vistaActual !== "amigos") return;
         clearTimeout(_refreshQrTimer);
         _refreshQrTimer = setTimeout(() => {
             if (typeof generarInterfazCompartir === "function") void generarInterfazCompartir();
@@ -2512,12 +2551,13 @@ document.getElementById("amigo-codigo-input")?.addEventListener("keydown", e => 
             todas: document.getElementById("todas"),
             tengo: document.getElementById("tengo"),
             repetidas: document.getElementById("repetidas"),
-            faltan: document.getElementById("faltan")
+            faltan: document.getElementById("faltan"),
+            favoritas: document.getElementById("favoritas")
         };
 
         Object.keys(secciones).forEach(sec => secciones[sec].innerHTML = "");
 
-        const listasPaises = { todas: {}, tengo: {}, repetidas: {}, faltan: {} };
+        const listasPaises = { todas: {}, tengo: {}, repetidas: {}, faltan: {}, favoritas: {} };
 
         figuritas.forEach(fig => {
             const crearFig = () => {
@@ -2581,11 +2621,25 @@ document.getElementById("amigo-codigo-input")?.addEventListener("keydown", e => 
                 if (!listasPaises.faltan[fig.codigo]) listasPaises.faltan[fig.codigo] = crearBloquePais(fig.codigo);
                 listasPaises.faltan[fig.codigo].grid.appendChild(crearFig());
             }
+
+            if (fig.favorite) {
+                if (!listasPaises.favoritas[fig.codigo]) listasPaises.favoritas[fig.codigo] = crearBloquePais(fig.codigo);
+                listasPaises.favoritas[fig.codigo].grid.appendChild(crearFig());
+            }
         });
 
         Object.keys(listasPaises).forEach(sec => {
             Object.values(listasPaises[sec]).forEach(bloque => secciones[sec].appendChild(bloque.div));
         });
+
+        if (!Object.keys(listasPaises.favoritas).length) {
+            const vacio = document.createElement("p");
+            vacio.textContent = "Todavía no marcaste favoritas.";
+            vacio.style.margin = "0";
+            vacio.style.fontSize = "14px";
+            vacio.style.opacity = "0.9";
+            secciones.favoritas.appendChild(vacio);
+        }
 
         actualizarProgreso();
         if (typeof usuarioActual !== "undefined" && usuarioActual) {
