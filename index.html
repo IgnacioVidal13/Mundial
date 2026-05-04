@@ -606,6 +606,21 @@
             padding-left: 18px;
             line-height: 1.45;
         }
+        .recordar-dispositivo {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 4px 0 8px;
+            color: #333;
+            font-size: 13px;
+            text-align: left;
+            cursor: pointer;
+        }
+        .recordar-dispositivo input {
+            width: 16px;
+            height: 16px;
+            margin: 0;
+        }
         .login-card input[type="text"],
         .login-card input[type="email"],
         .login-card input[type="password"] {
@@ -624,6 +639,10 @@
             <p class="form-hint">Entrá con el mismo correo con el que te registraste.</p>
             <input type="email" id="user-login" placeholder="Correo electrónico" autocomplete="username" style="width: 100%; padding: 12px; margin: 10px 0; background: #9c9c9c; color: white; border: 1px solid #444; border-radius: 5px;">
             <input type="password" id="pass-login" placeholder="Contraseña" autocomplete="current-password" style="width: 100%; padding: 12px; margin: 10px 0; background: #9c9c9c; color: white; border: 1px solid #444; border-radius: 5px;">
+            <label class="recordar-dispositivo" for="recordar-dispositivo-login">
+                <input type="checkbox" id="recordar-dispositivo-login" checked>
+                <span>Recordar este dispositivo</span>
+            </label>
             <p style="text-align: center; margin: 4px 0 8px;"><a href="#" class="link-auth" onclick="event.preventDefault(); recuperarPassword();">¿Olvidaste tu contraseña?</a></p>
             <button type="button" onclick="auth('login')" style="width: 100%; padding: 12px; background: rgb(187, 255, 255); border: none; font-weight: bold; cursor: pointer; margin-top: 6px;">Entrar</button>
             <p style="color: #666; margin-top: 16px; font-size: 14px;">¿Todavía no tenés cuenta? <a href="#" onclick="event.preventDefault(); toggleAuth();" style="color: #b8860b; font-weight: bold;">Crear cuenta</a></p>
@@ -762,6 +781,7 @@
     const SUPABASE_URL = "https://ejmztjclypvlonkvvbxy.supabase.co";
     const SUPABASE_ANON_KEY = "sb_publishable_Rmpo2vOz1dnPAy54uEq9BQ_BcNVJNNR";
     const SUPPORT_EMAIL = "contactosoportelista@gmail.com";
+    const RECORDAR_DISPOSITIVO_KEY = "mlm_recordar_dispositivo";
 
     if (!window.Swal) {
         window.Swal = {
@@ -799,6 +819,46 @@
         }, true);
     }
 
+    function recordarDispositivoActivo() {
+        return localStorage.getItem(RECORDAR_DISPOSITIVO_KEY) !== "0";
+    }
+
+    function setRecordarDispositivo(activo) {
+        localStorage.setItem(RECORDAR_DISPOSITIVO_KEY, activo ? "1" : "0");
+    }
+
+    function obtenerSupabaseStorageKey() {
+        try {
+            const ref = new URL(SUPABASE_URL).hostname.split(".")[0];
+            return `sb-${ref}-auth-token`;
+        } catch (error) {
+            return "supabase.auth.token";
+        }
+    }
+
+    function limpiarSesionPersistidaSupabase(storage) {
+        try {
+            storage.removeItem(obtenerSupabaseStorageKey());
+        } catch (error) {
+            console.warn("limpiarSesionPersistidaSupabase:", error);
+        }
+    }
+
+    const supabaseAuthStorage = {
+        getItem(key) {
+            const storage = recordarDispositivoActivo() ? localStorage : sessionStorage;
+            return storage.getItem(key);
+        },
+        setItem(key, value) {
+            const storage = recordarDispositivoActivo() ? localStorage : sessionStorage;
+            storage.setItem(key, value);
+        },
+        removeItem(key) {
+            localStorage.removeItem(key);
+            sessionStorage.removeItem(key);
+        }
+    };
+
     function getSupabase() {
         if (sbClient) return sbClient;
         const supabaseLib = window.supabase;
@@ -810,7 +870,9 @@
             sbClient = supabaseLib.createClient(url, key, {
                 auth: {
                     detectSessionInUrl: true,
-                    flowType: "pkce"
+                    flowType: "pkce",
+                    persistSession: true,
+                    storage: supabaseAuthStorage
                 }
             });
         } catch (e) {
@@ -818,6 +880,10 @@
             return null;
         }
         return sbClient;
+    }
+
+    function obtenerAuthRedirectUrl() {
+        return window.location.href.split("#")[0].split("?")[0];
     }
 
     async function obtenerBearerSesionSupabase(sb) {
@@ -1087,6 +1153,8 @@
     }
 
     function abrirLogin() {
+        const recordar = document.getElementById("recordar-dispositivo-login");
+        if (recordar) recordar.checked = recordarDispositivoActivo();
         const ov = document.getElementById("login-overlay");
         if (!ov) return;
         ov.style.display = "flex";
@@ -1195,7 +1263,10 @@
                 const { data, error } = await sb.auth.signUp({
                     email,
                     password,
-                    options: { data: { username: normNombre } }
+                    options: {
+                        emailRedirectTo: obtenerAuthRedirectUrl(),
+                        data: { username: normNombre }
+                    }
                 });
                 if (error) {
                     const x = mensajeAuthError(error);
@@ -1221,6 +1292,13 @@
                 });
                 toggleAuth();
                 return;
+            }
+
+            if (tipo === "login") {
+                const recordar = document.getElementById("recordar-dispositivo-login");
+                const recordarActivo = !recordar || recordar.checked;
+                setRecordarDispositivo(recordarActivo);
+                limpiarSesionPersistidaSupabase(recordarActivo ? sessionStorage : localStorage);
             }
 
             const { data, error } = await sb.auth.signInWithPassword({ email, password });
@@ -1429,6 +1507,15 @@
         return obtenerParametroAuthUrl("type") === "recovery" || obtenerParametroAuthUrl("type") === "password_recovery";
     }
 
+    function urlTieneCallbackAuth() {
+        return !!obtenerParametroAuthUrl("code") || !!obtenerParametroAuthUrl("access_token") || !!obtenerParametroAuthUrl("refresh_token");
+    }
+
+    function urlEsConfirmacionRegistro() {
+        const type = obtenerParametroAuthUrl("type");
+        return type === "signup" || type === "email" || type === "email_confirmation";
+    }
+
     function limpiarParametrosRecoveryUrl() {
         try {
             const u = new URL(window.location.href);
@@ -1473,6 +1560,45 @@
                 ...swalBase
             });
             return true;
+        }
+    }
+
+    async function procesarConfirmacionAuthDesdeUrl(sb = getSupabase()) {
+        if (!sb || urlEsRecoveryPassword() || !urlTieneCallbackAuth()) return false;
+        const code = obtenerParametroAuthUrl("code");
+        try {
+            if (code && typeof sb.auth.exchangeCodeForSession === "function") {
+                const { error } = await sb.auth.exchangeCodeForSession(code);
+                if (error) console.warn("confirmacion auth:", error.message || error);
+            }
+            const { data: { session } } = await sb.auth.getSession();
+            limpiarParametrosRecoveryUrl();
+            if (session && session.user) {
+                await aplicarSesionSupabase(sb, session.user);
+                if (urlEsConfirmacionRegistro()) {
+                    await Swal.fire({
+                        title: "Correo confirmado",
+                        text: "Tu cuenta ya está activa.",
+                        icon: "success",
+                        timer: 2200,
+                        showConfirmButton: false,
+                        ...swalBase
+                    });
+                }
+            } else if (urlEsConfirmacionRegistro()) {
+                abrirLogin();
+                await Swal.fire({
+                    title: "Correo confirmado",
+                    text: "Ahora iniciá sesión con tu correo y contraseña.",
+                    icon: "success",
+                    ...swalBase
+                });
+            }
+            return true;
+        } catch (error) {
+            console.error("procesarConfirmacionAuthDesdeUrl:", error);
+            limpiarParametrosRecoveryUrl();
+            return false;
         }
     }
 
@@ -2821,6 +2947,8 @@ document.getElementById("amigo-codigo-input")?.addEventListener("keydown", e => 
             try {
                 const recoveryProcesado = await procesarRecoveryDesdeUrl(sb);
                 if (recoveryProcesado) return;
+                const confirmacionProcesada = await procesarConfirmacionAuthDesdeUrl(sb);
+                if (confirmacionProcesada) return;
                 const { data: { session } } = await sb.auth.getSession();
                 if (session && session.user) {
                     habiaSesionInicial = true;

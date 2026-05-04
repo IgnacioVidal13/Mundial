@@ -74,11 +74,23 @@ grant select, insert, update on public.progreso_album to authenticated;
 create table if not exists public.profiles (
   id uuid primary key references auth.users (id) on delete cascade,
   username text not null unique,
+  email text,
   created_at timestamptz not null default now()
 );
 
 do $$
 begin
+  if not exists (
+    select 1
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'profiles'
+      and column_name = 'email'
+  ) then
+    alter table public.profiles
+      add column email text;
+  end if;
+
   if not exists (
     select 1 from pg_constraint
     where conname = 'profiles_username_format'
@@ -124,6 +136,7 @@ as $$
 declare
   v_uid uuid := auth.uid();
   v_username text := lower(trim(coalesce(auth.jwt() -> 'user_metadata' ->> 'username', '')));
+  v_email text := nullif(trim(coalesce(auth.jwt() ->> 'email', '')), '');
   v_saved text;
 begin
   if v_uid is null then
@@ -135,9 +148,10 @@ begin
   end if;
 
   begin
-    insert into public.profiles (id, username)
-    values (v_uid, v_username)
-    on conflict (id) do nothing;
+    insert into public.profiles (id, username, email)
+    values (v_uid, v_username, v_email)
+    on conflict (id) do update
+      set email = coalesce(excluded.email, public.profiles.email);
   exception
     when unique_violation then
       return null;
@@ -162,12 +176,14 @@ set search_path = public
 as $$
 declare
   v_username text := lower(trim(coalesce(new.raw_user_meta_data ->> 'username', '')));
+  v_email text := nullif(trim(coalesce(new.email, '')), '');
 begin
   if v_username ~ '^[a-z0-9_]{3,20}$' then
     begin
-      insert into public.profiles (id, username)
-      values (new.id, v_username)
-      on conflict (id) do nothing;
+      insert into public.profiles (id, username, email)
+      values (new.id, v_username, v_email)
+      on conflict (id) do update
+        set email = coalesce(excluded.email, public.profiles.email);
     exception
       when unique_violation then
         null;
@@ -184,6 +200,13 @@ drop trigger if exists on_auth_user_created_profile on auth.users;
 create trigger on_auth_user_created_profile
   after insert on auth.users
   for each row execute function public.handle_new_user_profile();
+
+update public.profiles p
+set email = u.email
+from auth.users u
+where p.id = u.id
+  and p.email is null
+  and u.email is not null;
 
 -- Anonimos: solo saber si el nombre esta libre (no listar tabla).
 create or replace function public.username_disponible(p_username text)
