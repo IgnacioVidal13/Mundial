@@ -187,6 +187,28 @@
         }
         #enlace-intercambio-wrap { max-width: 560px; margin: 12px auto 0; }
         #enlace-intercambio-wrap label { display: block; margin-bottom: 6px; font-size: 14px; color: #e8e8e8; }
+        #mi-codigo-display {
+            margin: 10px 0 12px;
+            padding: 10px 12px;
+            border-radius: 8px;
+            background: rgba(255, 215, 0, 0.12);
+            border: 1px solid rgba(255, 215, 0, 0.45);
+        }
+        #mi-codigo-display .codigo-label {
+            display: block;
+            margin-bottom: 4px;
+            color: #f3f3f3;
+            font-size: 13px;
+        }
+        #mi-codigo-texto {
+            display: block;
+            color: #ffd700;
+            font-family: Consolas, monospace;
+            font-size: 20px;
+            font-weight: bold;
+            letter-spacing: 0;
+            word-break: break-all;
+        }
         #enlace-intercambio {
             width: 100%;
             box-sizing: border-box;
@@ -275,7 +297,6 @@
         }
         .site-header .brand { color: gold; font-size: 22px; font-weight: 700; }
         .site-header #nav-app {
-            display: flex;
             flex-wrap: wrap;
             align-items: center;
             gap: 4px;
@@ -329,9 +350,6 @@
         }
         #vista-bienvenida h2 { margin: 0 0 12px; color: #111; font-size: 1.35rem; }
         #vista-bienvenida p { margin: 0; line-height: 1.5; font-size: 16px; color: #444; }
-        body.sesion-activa #vista-bienvenida { display: none !important; }
-        #album-contenido { display: none; }
-        body.sesion-activa #album-contenido { display: block !important; }
 
         #login-overlay .login-card { position: relative; }
         #login-overlay .btn-cerrar-modal {
@@ -443,7 +461,7 @@
         <h2>Álbum Mundial</h2>
         <p>Acá vas a llevar el control de tus figuritas, repetidas e intercambios.<br><strong>Iniciá sesión</strong> (arriba a la derecha) para entrar o crear una cuenta nueva.</p>
     </div>
-    <div id="album-contenido">
+    <div id="album-contenido" class="hidden">
     <div id="contador"></div>
 
     <div id="barra-container">
@@ -462,20 +480,24 @@
     <!-- Sección para que otros me escaneen -->
 <div id="mi-qr-seccion">
     <h3>Mi código de intercambio</h3>
-    <p id="aviso-file-protocol" class="hidden">Estás abriendo la página como <strong>archivo</strong> (ruta que empieza con <code>file://</code>). En muchos celulares el QR <strong>no abre bien</strong> el cruce. Subí la carpeta a un hosting gratis (por ejemplo GitHub Pages) o usá «Copiar enlace» y mandá el link por WhatsApp.</p>
-    <p id="txt-qr-explicacion">Con Supabase configurado, el QR lleva un <strong>código corto</strong> (<code>ref=</code>) que busca tu álbum en la nube. Sin Supabase, el enlace lleva el álbum comprimido en la URL.</p>
+    <p id="aviso-file-protocol" class="hidden">Estás abriendo la página como <strong>archivo</strong> (ruta que empieza con <code>file://</code>). En muchos celulares el QR <strong>no abre bien</strong> el cruce. Subí la carpeta a un hosting gratis o usá "Copiar enlace" y mandá el link.</p>
+    <p>Usa tu código único o QR para intercambiar figus en sus álbumes.</p>
     <div id="qrcode" aria-label="Código QR de intercambio"></div>
     <div id="enlace-intercambio-wrap">
-        <label for="enlace-intercambio">Si el QR no lee bien, copiá este enlace y enviáselo a tu amigo:</label>
-        <input type="text" id="enlace-intercambio" readonly placeholder="Iniciá sesión para generar el enlace…">
-        <button type="button" class="btn-copiar" onclick="copiarEnlaceIntercambio()">Copiar enlace</button>
+        <div id="mi-codigo-display" class="hidden" aria-live="polite">
+            <span class="codigo-label">Código de intercambio</span>
+            <strong id="mi-codigo-texto"></strong>
+        </div>
+        <label for="enlace-intercambio">Código de intercambio</label>
+        <input type="text" id="enlace-intercambio" readonly aria-label="Código de intercambio">
+        <button type="button" class="btn-copiar" onclick="copiarEnlaceIntercambio()">Copiar código</button>
     </div>
-    <p class="nota-codigo-corto" style="font-size:13px;opacity:.88;margin-top:12px;">En Supabase ejecutá el SQL de <code>supabase.sql</code> (incluye álbum, QR corto y <strong>nombre público único</strong>).</p>
+
 </div>
 
 <!-- Buscador manual por código -->
 <div id="buscar-amigo">
-    <input type="text" id="codigo-input" placeholder="Pegá el enlace, o solo el código de 10 letras (ref) si usan Supabase">
+    <input type="text" id="codigo-input" placeholder="Pegá el código">
     <button onclick="procesarIntercambioManual()">Comparar</button>
 </div>
 
@@ -507,17 +529,30 @@
     const SUPABASE_URL = "https://ejmztjclypvlonkvvbxy.supabase.co";
     const SUPABASE_ANON_KEY = "sb_publishable_Rmpo2vOz1dnPAy54uEq9BQ_BcNVJNNR";
 
+    if (!window.Swal) {
+        window.Swal = {
+            fire: async (options = {}, textArg = "") => {
+                const cfg = typeof options === "string" ? { title: options } : options;
+                const text = [cfg.title, cfg.text || textArg].filter(Boolean).join("\n");
+                if (text) alert(text);
+                return {};
+            },
+            showValidationMessage: (message) => alert(message)
+        };
+    }
+
     const swalBase = { background: "#1a1a1a", color: "#ffffff", confirmButtonColor: "#2196F3" };
 
     let sbClient = null;
     function getSupabase() {
         if (sbClient) return sbClient;
-        if (typeof supabase === "undefined" || !supabase || !supabase.createClient) return null;
+        const supabaseLib = window.supabase;
+        if (!supabaseLib || !supabaseLib.createClient) return null;
         const url = String(SUPABASE_URL || "").trim();
         const key = String(SUPABASE_ANON_KEY || "").trim();
         if (!url.startsWith("https://") || key.length < 10) return null;
         try {
-            sbClient = supabase.createClient(url, key, {
+            sbClient = supabaseLib.createClient(url, key, {
                 auth: {
                     detectSessionInUrl: true,
                     flowType: "pkce"
@@ -532,6 +567,7 @@
 
     let usuarioActual = "";
     let nombreVisibleUsuario = "";
+    let supabaseUserActual = null;
 
     function normalizarNombreUsuario(raw) {
         return String(raw || "")
@@ -595,19 +631,15 @@
         const { data: prof, error: e0 } = await sb.from("profiles").select("username").eq("id", user.id).maybeSingle();
         if (e0) console.warn(e0);
         if (prof && prof.username) return;
-        const meta = user.user_metadata && user.user_metadata.username;
-        if (!meta) return;
-        const norm = normalizarNombreUsuario(meta);
-        if (norm.length < 3) return;
-        const { error } = await sb.from("profiles").insert({ id: user.id, username: norm });
+        const { data: username, error } = await sb.rpc("ensure_user_profile");
         if (error) console.warn("sync perfil desde metadata:", error.message);
+        else if (username) nombreVisibleUsuario = username;
     }
 
-    async function cargarNombreVisibleUsuario() {
+    async function cargarNombreVisibleUsuario(sb = getSupabase(), userActual = null) {
         nombreVisibleUsuario = "";
-        const sb = getSupabase();
         if (sb && usuarioActual) {
-            const { data: { user } } = await sb.auth.getUser();
+            const user = userActual || supabaseUserActual || (await sb.auth.getUser()).data.user;
             if (user) {
                 const { data, error } = await sb.from("profiles").select("username").eq("id", user.id).maybeSingle();
                 if (!error && data && data.username) nombreVisibleUsuario = data.username;
@@ -623,20 +655,22 @@
     }
 
     function aplicarSesionActivaUI(activa) {
-        document.body.classList.toggle("sesion-activa", !!activa);
+        activa = !!activa;
+        const vistaBienvenida = document.getElementById("vista-bienvenida");
+        const albumContenido = document.getElementById("album-contenido");
         const nav = document.getElementById("nav-app");
         const btnIn = document.getElementById("btn-abrir-login");
         const btnOut = document.getElementById("btn-salir-nav");
         const chip = document.getElementById("chip-email");
         const ov = document.getElementById("login-overlay");
+        if (vistaBienvenida) vistaBienvenida.classList.toggle("hidden", activa);
+        if (albumContenido) albumContenido.classList.toggle("hidden", !activa);
         if (nav) nav.classList.toggle("hidden", !activa);
-        if (btnIn) btnIn.classList.toggle("hidden", !!activa);
+        if (btnIn) btnIn.classList.toggle("hidden", activa);
         if (btnOut) btnOut.classList.toggle("hidden", !activa);
-        if (chip) {
-            chip.classList.toggle("hidden", !activa);
-            if (activa && usuarioActual) actualizarTextoChipUsuario();
-        }
-        if (ov && !activa) ov.style.display = "none";
+        if (chip) chip.classList.toggle("hidden", !activa);
+        if (activa && usuarioActual) actualizarTextoChipUsuario();
+        if (ov) ov.style.display = "none";
     }
 
     function abrirLogin() {
@@ -742,25 +776,9 @@
                     return Swal.fire({ ...x, ...swalBase });
                 }
 
-                if (data.session && data.user) {
-                    const { error: pe } = await sb.from("profiles").insert({ id: data.user.id, username: normNombre });
-                    if (pe) {
-                        await sb.auth.signOut();
-                        if (pe.code === "23505") {
-                            return Swal.fire({
-                                title: "Nombre tomado",
-                                text: "En el último momento otro usuario registró ese nombre. Probá con otro.",
-                                icon: "warning",
-                                ...swalBase
-                            });
-                        }
-                        return Swal.fire({ title: "Error al guardar el perfil", text: pe.message, icon: "error", ...swalBase });
-                    }
-                    usuarioActual = (data.user.email || email).trim().toLowerCase();
+                if (await aplicarSesionDesdeAuthData(sb, data)) {
                     nombreVisibleUsuario = normNombre;
-                    cerrarLoginOverlay();
-                    await cargarDatosUsuario();
-                    aplicarSesionActivaUI(true);
+                    actualizarTextoChipUsuario();
                     return Swal.fire({
                         title: "¡Listo!",
                         text: "Tu cuenta quedó creada. Ya podés cargar tu álbum.",
@@ -784,10 +802,14 @@
                 const x = mensajeAuthError(error);
                 return Swal.fire({ ...x, ...swalBase });
             }
-            usuarioActual = (data.user.email || email).trim().toLowerCase();
-            cerrarLoginOverlay();
-            await cargarDatosUsuario();
-            aplicarSesionActivaUI(true);
+            if (!(await aplicarSesionDesdeAuthData(sb, data))) {
+                return Swal.fire({
+                    title: "No se pudo iniciar la sesion",
+                    text: "Supabase respondio correctamente, pero no devolvio una sesion activa.",
+                    icon: "error",
+                    ...swalBase
+                });
+            }
             return Swal.fire({
                 title: "¡Hola de nuevo!",
                 text: "Sesión iniciada.",
@@ -910,8 +932,7 @@
     }
 
     let _recoveryPwdUiAbierta = false;
-    async function pedirNuevaPasswordTrasRecovery() {
-        const sb = getSupabase();
+    async function pedirNuevaPasswordTrasRecovery(sb = getSupabase()) {
         if (!sb || _recoveryPwdUiAbierta) return;
         _recoveryPwdUiAbierta = true;
         const { value: nueva } = await Swal.fire({
@@ -961,12 +982,11 @@
     async function guardarProgresoSupabase() {
         const sb = getSupabase();
         if (!sb) return;
-        const { data: { user } } = await sb.auth.getUser();
+        const user = supabaseUserActual || (await sb.auth.getUser()).data.user;
         if (!user) return;
         const { error } = await sb.from("progreso_album").upsert(
             {
                 id: user.id,
-                email: user.email,
                 data: figuritas,
                 updated_at: new Date().toISOString()
             },
@@ -986,61 +1006,30 @@
         _saveCloudTimer = setTimeout(() => void guardarProgresoSupabase(), 900);
     }
 
-    function generarCodigoIntercambio(len = 10) {
-        const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-        const a = new Uint8Array(len);
-        crypto.getRandomValues(a);
-        let s = "";
-        for (let i = 0; i < len; i++) s += chars[a[i] % chars.length];
-        return s;
-    }
-
-    /** Publica/actualiza el álbum para el QR corto (tabla album_intercambios). */
-    async function upsertAlbumSharePayload() {
-        const sb = getSupabase();
+    /** Publica/actualiza el album para el QR corto mediante RPC. */
+    async function upsertAlbumSharePayload(sb = getSupabase(), userActual = null) {
         if (!sb) return null;
-        const { data: { user } } = await sb.auth.getUser();
+        const user = userActual || (await sb.auth.getUser()).data.user;
         if (!user || !figuritas || !figuritas.length) return null;
         const payload = await albumPayloadStringForUrl(figuritas, obtenerNombreParaAmigos() || user.email || "Amigo");
         const expires = new Date(Date.now() + 14 * 24 * 3600 * 1000).toISOString();
 
-        const { data: row, error: selErr } = await sb.from("album_intercambios").select("code").eq("owner_id", user.id).maybeSingle();
-        if (selErr) {
-            console.error(selErr);
+        const { data: code, error } = await sb.rpc("upsert_album_share", {
+            p_payload: payload,
+            p_expires_at: expires
+        });
+        if (error) {
+            console.error("upsert_album_share:", error.message);
             return null;
         }
-
-        if (row && row.code) {
-            const { error: upErr } = await sb.from("album_intercambios").update({ payload, expires_at: expires }).eq("owner_id", user.id);
-            if (upErr) {
-                console.error(upErr);
-                return null;
-            }
-            return row.code;
-        }
-
-        for (let intento = 0; intento < 5; intento++) {
-            const code = generarCodigoIntercambio(10);
-            const { error: insErr } = await sb.from("album_intercambios").insert({
-                owner_id: user.id,
-                code,
-                payload,
-                expires_at: expires
-            });
-            if (!insErr) return code;
-            if (insErr.code !== "23505") {
-                console.error(insErr);
-                return null;
-            }
-        }
-        return null;
+        return typeof code === "string" && code ? code : null;
     }
 
-    async function cargarDatosUsuario() {
-        const sb = getSupabase();
+    async function cargarDatosUsuario(sb = getSupabase(), userActual = null) {
         if (sb) {
-            const { data: { user } } = await sb.auth.getUser();
+            const user = userActual || supabaseUserActual || (await sb.auth.getUser()).data.user;
             if (!user) return;
+            supabaseUserActual = user;
             usuarioActual = (user.email || "").trim().toLowerCase();
 
             const { data: row, error } = await sb.from("progreso_album").select("data").eq("id", user.id).maybeSingle();
@@ -1075,7 +1064,7 @@
                 }
             }
             await syncPerfilUsuarioSupabase(user);
-            await cargarNombreVisibleUsuario();
+            await cargarNombreVisibleUsuario(sb, user);
         } else {
             const claveUser = "figuritas_" + usuarioActual;
             const datos = localStorage.getItem(claveUser);
@@ -1102,39 +1091,103 @@
         }
         renderMejorado();
         mostrar("todas");
-        void renderizarMiQR();
+        void generarInterfazCompartir(sb);
         if (typeof intentarCruceDesdeURL === "function") void intentarCruceDesdeURL();
         if (usuarioActual) aplicarSesionActivaUI(true);
     }
 
     async function cerrarSesion() {
-        const sb = getSupabase();
-        if (sb) await sb.auth.signOut();
+        try {
+            const sb = getSupabase();
+            if (sb) {
+                const { error } = await sb.auth.signOut();
+                if (error) console.warn("cerrarSesion signOut:", error.message || error);
+            }
+        } catch (error) {
+            console.warn("cerrarSesion:", error);
+        } finally {
+            limpiarSesionSupabase();
+        }
+    }
+
+    let _authListenerReady = false;
+    async function aplicarSesionSupabase(sb, user) {
+        if (!sb || !user) return;
+        supabaseUserActual = user;
+        usuarioActual = (user.email || "").trim().toLowerCase();
+        cerrarLoginOverlay();
+        await cargarDatosUsuario(sb, user);
+        aplicarSesionActivaUI(true);
+    }
+
+    async function aplicarSesionDesdeAuthData(sb, data) {
+        if (!sb || !data) return false;
+        let user = data.session && data.session.user ? data.session.user : data.user;
+        if (!user) {
+            const { data: sessionData } = await sb.auth.getSession();
+            user = sessionData && sessionData.session && sessionData.session.user;
+        }
+        if (!user) return false;
+        await aplicarSesionSupabase(sb, user);
+        return true;
+    }
+
+    function limpiarSesionSupabase() {
         usuarioActual = "";
         nombreVisibleUsuario = "";
+        supabaseUserActual = null;
         cerrarLoginOverlay();
         inicializar();
         aplicarSesionActivaUI(false);
         renderMejorado();
     }
 
-    let _authListenerReady = false;
-    function initSupabaseAuthListener() {
-        const sb = getSupabase();
-        if (!sb || _authListenerReady) return;
-        _authListenerReady = true;
-        sb.auth.onAuthStateChange(async (event) => {
+    function logAuthStateChangeError(event, session, error) {
+        console.error("initSupabaseAuthListener:", {
+            event,
+            userId: session && session.user ? session.user.id : null,
+            hasSession: !!session,
+            message: error && error.message ? error.message : String(error),
+            stack: error && error.stack ? error.stack : null,
+            error
+        });
+    }
+
+    async function manejarAuthStateChange(sb, event, session) {
+        try {
             if (event === "PASSWORD_RECOVERY") {
-                await pedirNuevaPasswordTrasRecovery();
+                await pedirNuevaPasswordTrasRecovery(sb);
+            }
+            if (event === "TOKEN_REFRESHED" && session && session.user) {
+                supabaseUserActual = session.user;
+                return;
+            }
+            if (["INITIAL_SESSION", "SIGNED_IN", "USER_UPDATED", "PASSWORD_RECOVERY"].includes(event) && session && session.user) {
+                await aplicarSesionSupabase(sb, session.user);
                 return;
             }
             if (event === "SIGNED_OUT") {
-                usuarioActual = "";
-                nombreVisibleUsuario = "";
-                cerrarLoginOverlay();
-                inicializar();
-                aplicarSesionActivaUI(false);
-                renderMejorado();
+                limpiarSesionSupabase();
+                return;
+            }
+            if (event === "INITIAL_SESSION") limpiarSesionSupabase();
+        } catch (error) {
+            logAuthStateChangeError(event, session, error);
+        }
+    }
+
+    function initSupabaseAuthListener(sb = getSupabase()) {
+        if (!sb || _authListenerReady) return;
+        _authListenerReady = true;
+        sb.auth.onAuthStateChange((event, session) => {
+            try {
+                setTimeout(() => {
+                    void manejarAuthStateChange(sb, event, session).catch((error) => {
+                        logAuthStateChangeError(event, session, error);
+                    });
+                }, 0);
+            } catch (error) {
+                logAuthStateChangeError(event, session, error);
             }
         });
     }
@@ -1502,8 +1555,15 @@
     function crearBloquePais(codigo) {
         const div = document.createElement("div");
         div.setAttribute("data-pais", codigo); // Esto es lo que permite que el buscador lo encuentre
-        div.innerHTML = `<h3>${codigo}</h3><div class="grid-figuritas"></div>`;
-        return { div, grid: div.querySelector(".grid-figuritas") };
+
+        const titulo = document.createElement("h3");
+        titulo.textContent = codigo;
+
+        const grid = document.createElement("div");
+        grid.className = "grid-figuritas";
+
+        div.append(titulo, grid);
+        return { div, grid };
     }
 
     // 2. Reemplazá tu función buscarPais por esta
@@ -1567,7 +1627,7 @@ document.getElementById("busqueda").addEventListener("keydown", e => {
         if (typeof usuarioActual === "undefined" || !usuarioActual) return;
         clearTimeout(_refreshQrTimer);
         _refreshQrTimer = setTimeout(() => {
-            if (typeof renderizarMiQR === "function") void renderizarMiQR();
+            if (typeof generarInterfazCompartir === "function") void generarInterfazCompartir();
         }, 700);
     }
 
@@ -1807,19 +1867,23 @@ document.getElementById("busqueda").addEventListener("keydown", e => {
 
     (async function initApp() {
         aplicarSesionActivaUI(false);
-        initSupabaseAuthListener();
         const sb = getSupabase();
-        let yaCargoSesion = false;
         if (sb) {
-            const { data: { session } } = await sb.auth.getSession();
-            if (session && session.user) {
-                usuarioActual = (session.user.email || "").trim().toLowerCase();
-                cerrarLoginOverlay();
-                await cargarDatosUsuario();
-                yaCargoSesion = true;
+            initSupabaseAuthListener(sb);
+            try {
+                const { data: { session } } = await sb.auth.getSession();
+                if (session && session.user) {
+                    await aplicarSesionSupabase(sb, session.user);
+                } else {
+                    inicializar();
+                    aplicarSesionActivaUI(false);
+                }
+            } catch (error) {
+                console.error("initApp getSession:", error);
+                inicializar();
+                aplicarSesionActivaUI(false);
             }
-        }
-        if (!yaCargoSesion) {
+        } else {
             inicializar();
             aplicarSesionActivaUI(false);
         }
@@ -2018,25 +2082,25 @@ function ejecutarCambioVoz(p1, n1, p2, n2) {
 }
 
 /** Con Supabase: URL corta `?ref=CODIGO`. Sin Supabase: `?album=` comprimido. */
-async function obtenerMiUrlDeIntercambio() {
+async function obtenerMiUrlDeIntercambio(sb = getSupabase(), userActual = null) {
     if (typeof usuarioActual === "undefined" || !usuarioActual) return null;
     if (!figuritas || !figuritas.length) return null;
-    const sb = getSupabase();
     if (sb) {
-        const { data: { user } } = await sb.auth.getUser();
-        if (!user) return null;
-        const code = await upsertAlbumSharePayload();
-        if (!code) return null;
-        try {
-            const u = new URL(window.location.href);
-            u.hash = "";
-            u.searchParams.delete("intercambio");
-            u.searchParams.delete("album");
-            u.searchParams.set("ref", code);
-            return u.toString();
-        } catch (e) {
-            console.error(e);
-            return null;
+        const user = userActual || (await sb.auth.getUser()).data.user;
+        if (user) {
+            const code = await upsertAlbumSharePayload(sb, user);
+            if (code) {
+                try {
+                    const u = new URL(window.location.href);
+                    u.hash = "";
+                    u.searchParams.delete("intercambio");
+                    u.searchParams.delete("album");
+                    u.searchParams.set("ref", code);
+                    return u.toString();
+                } catch (e) {
+                    console.error(e);
+                }
+            }
         }
     }
     try {
@@ -2053,22 +2117,30 @@ async function obtenerMiUrlDeIntercambio() {
     }
 }
 
-async function renderizarMiQR() {
+function limpiarQrGenerado(el) {
+    if (!el) return;
+    el.querySelectorAll("canvas, img, table").forEach(node => node.remove());
+}
+
+async function renderizarMiQR(sb = getSupabase(), userActual = null) {
     const el = document.getElementById("qrcode");
     const inp = document.getElementById("enlace-intercambio");
+    const codigoDisplay = document.getElementById("mi-codigo-display");
+    const codigoTexto = document.getElementById("mi-codigo-texto");
     if (!el || typeof usuarioActual === "undefined" || !usuarioActual) {
+        limpiarQrGenerado(el);
         if (inp) inp.value = "";
+        if (codigoDisplay) codigoDisplay.classList.add("hidden");
+        if (codigoTexto) codigoTexto.textContent = "";
         return;
     }
-    el.innerHTML = "";
+    limpiarQrGenerado(el);
     if (inp) inp.value = "Generando enlace…";
-    if (typeof QRCode === "undefined") {
-        if (inp) inp.placeholder = "No se cargó la librería del QR.";
-        return;
-    }
+    if (codigoDisplay) codigoDisplay.classList.add("hidden");
+    if (codigoTexto) codigoTexto.textContent = "";
     let url;
     try {
-        url = await obtenerMiUrlDeIntercambio();
+        url = await obtenerMiUrlDeIntercambio(sb, userActual);
     } catch (e) {
         console.error(e);
         if (inp) inp.value = "";
@@ -2078,15 +2150,31 @@ async function renderizarMiQR() {
         if (inp) inp.value = "";
         return;
     }
-    if (inp) inp.value = url;
-    const opts = { text: url, width: 300, height: 300 };
+    let code = "";
+    try {
+        code = new URL(url).searchParams.get("ref") || "";
+        if (code && codigoDisplay && codigoTexto) {
+            codigoTexto.textContent = code;
+            codigoDisplay.classList.remove("hidden");
+        }
+    } catch (e) {
+        console.error(e);
+    }
+    const valorCompartir = code || url;
+    const valorQr = code ? url : valorCompartir;
+    if (inp) inp.value = valorCompartir;
+    if (typeof QRCode === "undefined") {
+        if (inp) inp.title = "No se cargo la libreria del QR, pero podes copiar este codigo.";
+        return;
+    }
+    const opts = { text: valorQr, width: 300, height: 300 };
     if (typeof QRCode.CorrectLevel !== "undefined") opts.correctLevel = QRCode.CorrectLevel.L;
     try {
         new QRCode(el, opts);
     } catch (e) {
         Swal.fire({
             title: "No se pudo dibujar el QR",
-            text: "Usá «Copiar enlace» y mandá el enlace por WhatsApp.",
+            text: "Usa Copiar codigo y mandalo por WhatsApp.",
             icon: "warning",
             background: "#1a1a1a",
             color: "#ffffff"
@@ -2094,12 +2182,16 @@ async function renderizarMiQR() {
     }
 }
 
+async function generarInterfazCompartir(sb = getSupabase(), userActual = null) {
+    return renderizarMiQR(sb, userActual);
+}
+
 async function copiarEnlaceIntercambio() {
     const inp = document.getElementById("enlace-intercambio");
     const t = (inp && inp.value) ? inp.value.trim() : "";
     if (!t || t === "Generando enlace…") {
         return Swal.fire({
-            title: "Todavía no hay enlace",
+            title: "Todavia no hay codigo",
             text: "Iniciá sesión y esperá un segundo a que termine de generarse.",
             icon: "info",
             background: "#1a1a1a",
@@ -2126,7 +2218,7 @@ async function procesarIntercambioManual() {
     if (!val) {
         return Swal.fire({
             title: "Aviso",
-            text: "Pegá el enlace o el código de intercambio que te pasó tu amigo.",
+            text: "Pega el codigo de intercambio que te paso tu amigo.",
             icon: "info",
             background: "#1a1a1a",
             color: "#ffffff"
@@ -2137,7 +2229,7 @@ async function procesarIntercambioManual() {
         return Swal.fire({
             title: "No encontré el álbum",
             text: getSupabase()
-                ? "Tiene que ser un enlace con ref=… o el código de 10 letras, o un enlace con album=…"
+                ? "Tiene que ser el codigo de 10 letras y numeros, o un enlace con ref= o album=."
                 : "El texto tiene que incluir album=… (enlace de intercambio).",
             icon: "warning",
             background: "#1a1a1a",
