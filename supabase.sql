@@ -441,6 +441,10 @@ begin
   values (v_uid, v_friend)
   on conflict (owner_id, friend_id) do nothing;
 
+  insert into public.album_amigos (owner_id, friend_id)
+  values (v_friend, v_uid)
+  on conflict (owner_id, friend_id) do nothing;
+
   select username into v_username
   from public.profiles
   where id = v_friend;
@@ -491,8 +495,8 @@ security definer
 set search_path = public
 as $$
   delete from public.album_amigos
-  where owner_id = auth.uid()
-    and friend_id = p_friend_id
+  where (owner_id = auth.uid() and friend_id = p_friend_id)
+     or (owner_id = p_friend_id and friend_id = auth.uid())
   returning true;
 $$;
 

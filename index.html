@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
@@ -60,13 +60,13 @@
             100% { background-position: 0% 50%; }
         }
 
-  
+
 
 
         /* --- PROGRESO --- */
         #contador { margin-bottom: 15px; font-size: 18px; font-weight: bold; text-shadow: 0 0 5px black; }
 
-        
+
         #barra-container {
             width: 100%; height: 35px; background: #222;
             border-radius: 20px; position: relative; margin-bottom: 30px;
@@ -118,6 +118,17 @@
         .figurita:active { transform: scale(0.95); }
 
         .figurita.tengo { background: #4CAF50; color: white; border-color: #2e7d32; }
+        .figurita.favorita { box-shadow: inset 0 0 0 2px #ffd700; }
+
+        .btn-favorita {
+            position: absolute; top: 2px; left: 2px;
+            background: rgba(0,0,0,0.25); border: none; color: #ffd700;
+            border-radius: 50%; width: 18px; height: 18px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 12px; cursor: pointer;
+            line-height: 1;
+        }
+        .btn-favorita:hover { background: rgba(255,215,0,0.2); }
 
         /* Contador de repetidas dentro de la figurita */
         .badge-rep {
@@ -268,6 +279,16 @@
             color: #ffd700;
             white-space: pre-wrap;
         }
+        #cruce-sugerencia {
+            margin-top: 12px;
+            padding: 12px;
+            border-radius: 8px;
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.14);
+            white-space: pre-wrap;
+            font-size: 14px;
+            line-height: 1.45;
+        }
         #panel-cruce-intercambio .btn-cerrar-cruce {
             margin-top: 14px;
             padding: 8px 16px;
@@ -318,8 +339,8 @@
             gap: 12px;
         }
         .amigo-card {
-            background: rgba(255,255,255,0.08);
-            border: 1px solid rgba(255,255,255,0.14);
+            background: rgba(0,0,0,0.34);
+            border: 1px solid rgba(255,255,255,0.10);
             border-radius: 8px;
             padding: 14px;
         }
@@ -346,11 +367,67 @@
             margin-top: 18px;
             padding: 16px;
             border-radius: 8px;
-            background: rgba(0,0,0,0.25);
-            border: 1px solid rgba(255,255,255,0.14);
+            background: rgba(0,0,0,0.72);
+            border: 1px solid rgba(255,255,255,0.16);
+            color: #f4f4f4;
             white-space: pre-wrap;
             font-size: 14px;
             line-height: 1.45;
+            box-shadow: 0 10px 24px rgba(0,0,0,0.35);
+        }
+        .amigo-detalle-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+        .amigo-detalle-head strong {
+            font-size: 1.05rem;
+            color: gold;
+        }
+        .amigo-barra {
+            margin: 8px 0 14px;
+        }
+        .amigo-barra-wrap {
+            position: relative;
+            padding-top: 0;
+        }
+        .amigo-barra-track {
+            position: relative;
+            width: 100%;
+            height: 20px;
+            border-radius: 999px;
+            background: #222;
+            border: 1px solid rgba(255,255,255,0.18);
+            overflow: hidden;
+        }
+        .amigo-barra-fill {
+            position: absolute;
+            left: 0;
+            top: 0;
+            height: 100%;
+            background: linear-gradient(90deg, #d4af37, #ffd700, #d4af37);
+            border-radius: 999px;
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,0.12);
+        }
+        .amigo-barra-copa {
+            position: absolute;
+            top: 50%;
+            width: 30px;
+            height: 30px;
+            transform: translate(-50%, -50%) rotate(90deg);
+            transform-origin: center;
+            filter: drop-shadow(0 0 4px rgba(0,0,0,0.55));
+            pointer-events: none;
+        }
+        .amigo-barra-meta {
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+            margin-top: 6px;
+            font-size: 12px;
+            opacity: 0.9;
         }
 
         .site-header {
@@ -539,7 +616,7 @@
         <input type="text" id="busqueda" placeholder="Código de país (ej: ARG)...">
         <button id="btnBuscar" onclick="buscarPais()">Buscar</button>
         <button onclick="activarVoz()" style="background: #96d6ea; color: white; border-radius: 50%; width: 50px; height: 50px; border: none; cursor: pointer;">
-    🎤
+    IA
 </button>
     </div>
 
@@ -556,6 +633,7 @@
         </div>
         <button type="button" class="btn-copiar" onclick="copiarEnlaceIntercambio()">Copiar código</button>
     </div>
+    <div id="cruce-sugerencia" class="amigo-detalle hidden"></div>
 
 </div>
 
@@ -1223,7 +1301,7 @@
             if (error) console.error(error);
 
             if (row && row.data && Array.isArray(row.data) && row.data.length) {
-                figuritas = row.data;
+                figuritas = normalizarFiguritasPersistidas(row.data);
             } else {
                 const claveUser = "figuritas_" + usuarioActual;
                 const datos = localStorage.getItem(claveUser);
@@ -1244,7 +1322,7 @@
                     }
                 }
                 if (migrado && migrado.length) {
-                    figuritas = migrado;
+                    figuritas = normalizarFiguritasPersistidas(migrado);
                     await guardarProgresoSupabase();
                 } else {
                     inicializar();
@@ -1254,21 +1332,21 @@
             await cargarNombreVisibleUsuario(sb, user);
         } else {
             const claveUser = "figuritas_" + usuarioActual;
-            const datos = localStorage.getItem(claveUser);
-            if (datos) {
-                try {
-                    figuritas = JSON.parse(datos);
-                } catch (e) {
-                    inicializar();
-                }
-            } else {
-                const legacy = localStorage.getItem("figuritas");
-                if (legacy) {
+                const datos = localStorage.getItem(claveUser);
+                if (datos) {
                     try {
-                        figuritas = JSON.parse(legacy);
-                        localStorage.setItem(claveUser, legacy);
+                        figuritas = normalizarFiguritasPersistidas(JSON.parse(datos));
                     } catch (e) {
                         inicializar();
+                    }
+                } else {
+                    const legacy = localStorage.getItem("figuritas");
+                    if (legacy) {
+                        try {
+                            figuritas = normalizarFiguritasPersistidas(JSON.parse(legacy));
+                            localStorage.setItem(claveUser, legacy);
+                        } catch (e) {
+                            inicializar();
                     }
                 } else {
                     inicializar();
@@ -1278,7 +1356,6 @@
         }
         renderMejorado();
         mostrar("todas");
-        void generarInterfazCompartir(sb);
         if (typeof intentarCruceDesdeURL === "function") void intentarCruceDesdeURL();
         if (usuarioActual) aplicarSesionActivaUI(true);
     }
@@ -1411,10 +1488,31 @@
                     id: `${codigo} ${i.toString().padStart(2, "0")}`,
                     codigo,
                     estado: "faltan", // faltan o tengo
-                    cantidad: 0 // representa REPETIDAS (la primera no cuenta como repetida)
+                    cantidad: 0, // representa REPETIDAS (la primera no cuenta como repetida)
+                    favorite: false
                 });
             }
         });
+    }
+
+    function normalizarFigurita(fig) {
+        if (!fig || typeof fig !== "object") return null;
+        const id = String(fig.id || "").trim();
+        const codigo = String(fig.codigo || (id.split(/\s+/)[0] || "")).trim().toUpperCase();
+        const estado = String(fig.estado || "faltan").toLowerCase() === "tengo" ? "tengo" : "faltan";
+        const cantidad = Math.max(0, parseInt(fig.cantidad, 10) || 0);
+        return {
+            ...fig,
+            id,
+            codigo,
+            estado,
+            cantidad,
+            favorite: !!fig.favorite
+        };
+    }
+
+    function normalizarFiguritasPersistidas(arr) {
+        return Array.isArray(arr) ? arr.map(normalizarFigurita).filter(Boolean) : [];
     }
 
     /** Mismo orden que `inicializar()` (para codificar/decodificar bytes del QR). */
@@ -1544,36 +1642,87 @@
         for (let i = 0; i < n; i++) {
             const mb = miBytes[i];
             const sb = suBytes[i];
-            if (mb >= 2 && sb === 0) yoLeSirvo.push({ id: ids[i], repes: mb - 1 });
-            if (sb >= 2 && mb === 0) elMeSirve.push({ id: ids[i], repes: sb - 1 });
+            if (mb >= 2 && sb === 0) yoLeSirvo.push({ id: ids[i], repes: 1 });
+            if (sb >= 2 && mb === 0) elMeSirve.push({ id: ids[i], repes: 1 });
         }
         return { yoLeSirvo, elMeSirve };
     }
 
-    function esFiguritaBrillante(id) {
-        const partes = String(id || "").trim().split(/\s+/);
-        const cod = (partes[0] || "").toUpperCase();
-        const num = (partes[1] || "").padStart(2, "0");
-        return cod === "FWC" || num === "01";
+    function toggleFavorita(fig) {
+        if (!requiereSesionParaEditar()) return;
+        fig.favorite = !fig.favorite;
+        renderMejorado();
     }
 
-    function valorIntercambio(items) {
-        return items.reduce((acc, item) => {
-            const cantidad = Math.max(1, parseInt(item.repes, 10) || 1);
-            if (esFiguritaBrillante(item.id)) {
-                acc.brillantes += cantidad;
-                acc.valor += cantidad * 3;
-            } else {
-                acc.normales += cantidad;
-                acc.valor += cantidad;
+    function intercambioMinimo(itemsYo, itemsEl) {
+        const uniqueYo = Array.from(new Map(itemsYo.map((item) => [item.id, item])).values());
+        const uniqueEl = Array.from(new Map(itemsEl.map((item) => [item.id, item])).values());
+        return Math.min(uniqueYo.length, uniqueEl.length);
+    }
+
+    function formatearListaSeleccion(items) {
+        if (!items.length) return "(ninguna)";
+        return items.map((item) => item.id).join(", ");
+    }
+
+    function formatearPedidoRecomendado(items) {
+        if (!items.length) return "(ninguna)";
+        if (items.length === 1) return items[0].id;
+        if (items.length === 2) return `${items[0].id} y ${items[1].id}`;
+        return `${items.slice(0, -1).map((item) => item.id).join(", ")} y ${items[items.length - 1].id}`;
+    }
+
+    function codigoDeFigurita(id) {
+        return String(id || "").split(/\s+/)[0] || "";
+    }
+
+    function prepararSugerenciaPedido(cruce) {
+        const totalObjetivo = intercambioMinimo(cruce.yoLeSirvo, cruce.elMeSirve);
+        const favoritos = figuritas
+            .filter((f) => f.favorite && String(f.estado).toLowerCase() !== "tengo")
+            .map((f) => f.id);
+        const favoritosSet = new Set(favoritos);
+        const paisesQueDoy = [];
+        const paisesSet = new Set();
+        cruce.yoLeSirvo.forEach((item) => {
+            const cod = codigoDeFigurita(item.id);
+            if (!paisesSet.has(cod)) {
+                paisesSet.add(cod);
+                paisesQueDoy.push(cod);
             }
-            acc.total += cantidad;
-            return acc;
-        }, { normales: 0, brillantes: 0, total: 0, valor: 0 });
-    }
-
-    function formatearValorIntercambio(v) {
-        return `${v.total} figurita(s): ${v.normales} normal(es) + ${v.brillantes} brillante(s) = valor ${v.valor}`;
+        });
+        const elegibles = Array.from(new Map(cruce.elMeSirve.map((item) => [item.id, item])).values()).map((item) => ({
+            id: item.id,
+            favorita: favoritosSet.has(item.id),
+            cod: codigoDeFigurita(item.id),
+            paisPrioritario: paisesSet.has(codigoDeFigurita(item.id))
+        }));
+        const favoritosCandidatos = elegibles.filter((item) => item.favorita);
+        const restantes = elegibles.filter((item) => !item.favorita);
+        restantes.sort((a, b) => {
+            const pa = a.paisPrioritario ? paisesQueDoy.indexOf(a.cod) : Number.POSITIVE_INFINITY;
+            const pb = b.paisPrioritario ? paisesQueDoy.indexOf(b.cod) : Number.POSITIVE_INFINITY;
+            if (pa !== pb) return pa - pb;
+            if (a.paisPrioritario !== b.paisPrioritario) return a.paisPrioritario ? -1 : 1;
+            return a.id.localeCompare(b.id);
+        });
+        const paisPrioritarios = restantes.filter((item) => item.paisPrioritario);
+        const otros = restantes.filter((item) => !item.paisPrioritario);
+        for (let i = otros.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [otros[i], otros[j]] = [otros[j], otros[i]];
+        }
+        const pool = [...favoritosCandidatos, ...paisPrioritarios, ...otros];
+        const elegidos = [];
+        for (const item of pool) {
+            if (elegidos.length >= totalObjetivo) break;
+            elegidos.push(item);
+        }
+        return {
+            objetivo: totalObjetivo,
+            elegidos,
+            texto: formatearPedidoRecomendado(elegidos)
+        };
     }
 
     function formatearListaCruce(items) {
@@ -1658,10 +1807,55 @@
         return partes.join("\n");
     }
 
+    function escapeHtml(text) {
+        return String(text || "").replace(/[&<>"']/g, (ch) => ({
+            "&": "&amp;",
+            "<": "&lt;",
+            ">": "&gt;",
+            "\"": "&quot;",
+            "'": "&#39;"
+        }[ch]));
+    }
+
+    function ocultarDetalleAmigo() {
+        const detalle = document.getElementById("amigo-detalle");
+        if (!detalle) return;
+        detalle.classList.add("hidden");
+        detalle.innerHTML = "";
+    }
+
+    function renderBarraAmigo(progreso, pegadas, total) {
+        const width = Math.max(0, Math.min(100, Number(progreso) || 0));
+        return `
+            <div class="amigo-barra">
+                <div class="amigo-barra-wrap">
+                    <div class="amigo-barra-track">
+                        <div class="amigo-barra-fill" style="width:${width}%"></div>
+                    </div>
+                    <img class="amigo-barra-copa" src="copa.png" alt="" aria-hidden="true" style="left:${width}%">
+                </div>
+                <div class="amigo-barra-meta">
+                    <span>Progreso: ${pegadas}/${total}</span>
+                    <span>${width.toFixed(1)}%</span>
+                </div>
+            </div>
+        `;
+    }
+
     function mostrarDetalleAmigo(nombre, decoded, modo) {
         const detalle = document.getElementById("amigo-detalle");
         if (!detalle) return;
-        detalle.textContent = textoAlbumAmigo(nombre, decoded, modo);
+        const r = resumenAlbumBytes(decoded.albumBytes);
+        const titulo = escapeHtml(nombre);
+        const texto = escapeHtml(textoAlbumAmigo(nombre, decoded, modo));
+        detalle.innerHTML = `
+            <div class="amigo-detalle-head">
+                <strong>${titulo}</strong>
+                <button type="button" onclick="ocultarDetalleAmigo()">Ocultar pestaña</button>
+            </div>
+            ${renderBarraAmigo(r.progreso, r.pegadas.length, r.total)}
+            <div>${texto}</div>
+        `;
         detalle.classList.remove("hidden");
         detalle.scrollIntoView({ behavior: "smooth", block: "nearest" });
     }
@@ -1819,8 +2013,7 @@
     function mostrarResultadoCruce(nombreAmigo, cruce) {
         const panel = document.getElementById("panel-cruce-intercambio");
         if (!panel) return;
-        const doy = valorIntercambio(cruce.yoLeSirvo);
-        const recibo = valorIntercambio(cruce.elMeSirve);
+        const sugerencia = prepararSugerenciaPedido(cruce);
         document.getElementById("cruce-titulo").textContent = "Cruce automático (repetidas ↔ faltantes)";
         document.getElementById("cruce-subtitulo").textContent =
             `Comparando tu álbum con el de: ${nombreAmigo}. ` +
@@ -1828,13 +2021,14 @@
         document.getElementById("cruce-yo-le-doy").textContent = formatearListaCruce(cruce.yoLeSirvo);
         document.getElementById("cruce-el-me-da").textContent = formatearListaCruce(cruce.elMeSirve);
         document.getElementById("cruce-resumen").textContent =
-            `Podés ofrecerle ${cruce.yoLeSirvo.length} figurita(s) · Te conviene pedirle ${cruce.elMeSirve.length} figurita(s)`;
-        document.getElementById("cruce-resumen").textContent =
-            `Podés ofrecerle ${cruce.yoLeSirvo.length} figurita(s) · Te conviene pedirle ${cruce.elMeSirve.length} figurita(s)\n` +
-            `Brillantes que das: ${doy.brillantes} · Brillantes que recibís: ${recibo.brillantes}\n` +
-            `Valor que das: ${formatearValorIntercambio(doy)}\n` +
-            `Valor que recibís: ${formatearValorIntercambio(recibo)}\n` +
-            "Recomendación: 1 brillante equivale a 3 figuritas normales.";
+            `Podés ofrecerle ${cruce.yoLeSirvo.length} figurita(s) · Intercambio recomendado: Pedí ${sugerencia.texto}`;
+        const sugerenciaEl = document.getElementById("cruce-sugerencia");
+        if (sugerenciaEl) {
+            sugerenciaEl.textContent =
+                `Intercambio recomendado: Pedí ${sugerencia.texto}\n` +
+                `Favoritas priorizadas: ${sugerencia.elegidos.filter((i) => i.favorita).length}`;
+            sugerenciaEl.classList.toggle("hidden", !sugerencia.elegidos.length);
+        }
         panel.classList.add("visible");
         panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
     }
@@ -1892,10 +2086,11 @@
         const miBytes = albumBytesFromFiguritas(figuritas);
         const cruce = cruzarAlbumBytes(miBytes, decoded.albumBytes, ids);
         mostrarResultadoCruce(decoded.displayName, cruce);
+        const sugerencia = prepararSugerenciaPedido(cruce);
 
         Swal.fire({
             title: "Cruce listo",
-            html: `<p style="margin:0"><b>Vos le servís:</b> ${cruce.yoLeSirvo.length} · <b>Él te sirve:</b> ${cruce.elMeSirve.length}</p>`,
+            html: `<p style="margin:0"><b>Podés dar:</b> ${cruce.yoLeSirvo.length} · <b>Intercambio recomendado:</b> Pedí ${sugerencia.texto}<br><b>Favoritas en la sugerencia:</b> ${sugerencia.elegidos.filter((i) => i.favorita).length}</p>`,
             icon: "success",
             toast: true,
             position: "top-end",
@@ -2023,7 +2218,7 @@
     function buscarPais() {
     const inputBusqueda = document.getElementById("busqueda");
     const filtro = inputBusqueda.value.trim().toUpperCase();
-    
+
     if (!filtro) return;
 
     // Buscamos en TODA la página el bloque que tenga ese data-pais
@@ -2033,29 +2228,29 @@
 
     // Filtramos para encontrar el bloque que está en la pestaña que estás viendo
     bloques.forEach(b => {
-        if (b.offsetParent !== null) { 
+        if (b.offsetParent !== null) {
             bloqueEncontrado = b;
         }
     });
 
     if (bloqueEncontrado) {
-        bloqueEncontrado.scrollIntoView({ 
-            behavior: "smooth", 
+        bloqueEncontrado.scrollIntoView({
+            behavior: "smooth",
             block: "center"
         });
 
         const titulo = bloqueEncontrado.querySelector("h3");
         if (titulo) {
             titulo.style.transition = "all 0.3s";
-            titulo.style.color = "#FFD700"; 
+            titulo.style.color = "#FFD700";
             titulo.style.textShadow = "0 0 10px gold";
-            
+
             setTimeout(() => {
                 titulo.style.color = "";
                 titulo.style.textShadow = "";
             }, 2500);
         }
-        inputBusqueda.blur(); 
+        inputBusqueda.blur();
     } else {
         Swal.fire({
             title: '¡País no encontrado!',
@@ -2103,9 +2298,19 @@ document.getElementById("amigo-codigo-input")?.addEventListener("keydown", e => 
         figuritas.forEach(fig => {
             const crearFig = () => {
                 const box = document.createElement("div");
-                box.className = `figurita ${fig.estado === "tengo" ? "tengo" : ""}`;
+                box.className = `figurita ${fig.estado === "tengo" ? "tengo" : ""}${fig.favorite ? " favorita" : ""}`;
                 box.innerHTML = `<span>${fig.id}</span>`;
-                
+
+                const bf = document.createElement("button");
+                bf.className = "btn-favorita";
+                bf.textContent = fig.favorite ? "★" : "☆";
+                bf.title = fig.favorite ? "Quitar favorita" : "Marcar favorita";
+                bf.onclick = (e) => {
+                    e.stopPropagation();
+                    toggleFavorita(fig);
+                };
+                box.appendChild(bf);
+
                 if (fig.estado === "tengo") {
                     if (fig.cantidad > 0) {
                         const b = document.createElement("div");
@@ -2143,7 +2348,7 @@ document.getElementById("amigo-codigo-input")?.addEventListener("keydown", e => 
             if (fig.estado === "tengo") {
                 if (!listasPaises.tengo[fig.codigo]) listasPaises.tengo[fig.codigo] = crearBloquePais(fig.codigo);
                 listasPaises.tengo[fig.codigo].grid.appendChild(crearFig());
-                
+
                 if (fig.cantidad > 0) {
                     if (!listasPaises.repetidas[fig.codigo]) listasPaises.repetidas[fig.codigo] = crearBloquePais(fig.codigo);
                     listasPaises.repetidas[fig.codigo].grid.appendChild(crearFig());
@@ -2172,9 +2377,9 @@ document.getElementById("amigo-codigo-input")?.addEventListener("keydown", e => 
         const totalRepetidas = figuritas.reduce((acc, f) => acc + f.cantidad, 0);
         const progreso = (pegadas / total) * 100;
 
-        document.getElementById("contador").textContent = 
+        document.getElementById("contador").textContent =
             `Pegadas: ${pegadas} de ${total} (${progreso.toFixed(1)}%) | Repetidas: ${totalRepetidas}`;
-        
+
         document.getElementById("barra").style.width = progreso + "%";
         document.getElementById("copa").style.left = progreso + "%";
 
@@ -2201,7 +2406,7 @@ document.getElementById("amigo-codigo-input")?.addEventListener("keydown", e => 
     try {
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
-        
+
         // --- 1. DATOS Y URL DE INTERCAMBIO ---
         const copiaFiguritas = JSON.parse(JSON.stringify(figuritas));
         const total = copiaFiguritas.length;
@@ -2219,7 +2424,7 @@ document.getElementById("amigo-codigo-input")?.addEventListener("keydown", e => 
         doc.setFontSize(20);
         doc.setTextColor(255, 87, 34);
         doc.text(tituloUsuario.toUpperCase(), 105, y, { align: "center" });
-        
+
         // INSERTAR QR (Si existe el link)
         if (miLink) {
             const qrImagenData = await generarImagenQR(miLink);
@@ -2252,8 +2457,8 @@ document.getElementById("amigo-codigo-input")?.addEventListener("keydown", e => 
         for (let i = 0; i < listaCodigos.length; i++) {
             try {
                 const cod = listaCodigos[i];
-                const faltantes = copiaFiguritas.filter(f => 
-                    String(f.codigo).toUpperCase() === cod && 
+                const faltantes = copiaFiguritas.filter(f =>
+                    String(f.codigo).toUpperCase() === cod &&
                     String(f.estado).toLowerCase() !== "tengo"
                 );
 
@@ -2282,8 +2487,8 @@ document.getElementById("amigo-codigo-input")?.addEventListener("keydown", e => 
         for (let i = 0; i < listaCodigos.length; i++) {
             try {
                 const cod = listaCodigos[i];
-                const repes = copiaFiguritas.filter(f => 
-                    String(f.codigo).toUpperCase() === cod && 
+                const repes = copiaFiguritas.filter(f =>
+                    String(f.codigo).toUpperCase() === cod &&
                     parseInt(f.cantidad) > 0
                 );
 
@@ -2306,7 +2511,7 @@ document.getElementById("amigo-codigo-input")?.addEventListener("keydown", e => 
         if (/iPhone|iPad|iPod/.test(navigator.userAgent)) {
             const blob = doc.output('blob');
             const url = URL.createObjectURL(blob);
-            window.open(url, '_blank'); 
+            window.open(url, '_blank');
         } else {
             doc.save(nombreArchivo);
         }
@@ -2366,18 +2571,18 @@ document.getElementById("amigo-codigo-input")?.addEventListener("keydown", e => 
     }
 
 const diccionarioPaises = {
-    "mundial": "FWC", "trofeo": "FWC", "méxico": "MEX", "mexico": "MEX", "sudáfrica": "RSA", 
-    "sudafrica": "RSA", "corea": "KOR", "checa": "CZE", "república checa": "CZE", "canadá": "CAN", 
-    "canada": "CAN", "bosnia": "BIH", "catar": "QAT", "qatar": "QAT", "suiza": "SUI", "brasil": "BRA", 
-    "marruecos": "MAR", "haití": "HAI", "haiti": "HAI", "escocia": "SCO", "estados unidos": "USA", 
-    "usa": "USA", "paraguay": "PAR", "australia": "AUS", "turquía": "TUR", "turquia": "TUR", 
-    "alemania": "GER", "curazao": "CUW", "costa de marfil": "CIV", "ecuador": "ECU", "holanda": "NED", 
-    "países bajos": "NED", "paises bajos": "NED", "japón": "JPN", "japon": "JPN", "suecia": "SWE", 
-    "túnez": "TUN", "tunez": "TUN", "bélgica": "BEL", "belgica": "BEL", "egipto": "EGY", "irán": "IRN", 
-    "iran": "IRN", "nueva zelanda": "NZL", "españa": "ESP", "cabo verde": "CPV", "arabia": "KSA", 
-    "uruguay": "URU", "francia": "FRA", "senegal": "SEN", "irak": "IRQ", "iraq": "IRQ", "noruega": "NOR", 
-    "argentina": "ARG", "argelia": "ALG", "austria": "AUT", "jordania": "JOR", "portugal": "POR", 
-    "congo": "COD", "uzbekistán": "UZB", "uzbekistan": "UZB", "colombia": "COL", "inglaterra": "ENG", 
+    "mundial": "FWC", "trofeo": "FWC", "méxico": "MEX", "mexico": "MEX", "sudáfrica": "RSA",
+    "sudafrica": "RSA", "corea": "KOR", "checa": "CZE", "república checa": "CZE", "canadá": "CAN",
+    "canada": "CAN", "bosnia": "BIH", "catar": "QAT", "qatar": "QAT", "suiza": "SUI", "brasil": "BRA",
+    "marruecos": "MAR", "haití": "HAI", "haiti": "HAI", "escocia": "SCO", "estados unidos": "USA",
+    "usa": "USA", "paraguay": "PAR", "australia": "AUS", "turquía": "TUR", "turquia": "TUR",
+    "alemania": "GER", "curazao": "CUW", "costa de marfil": "CIV", "ecuador": "ECU", "holanda": "NED",
+    "países bajos": "NED", "paises bajos": "NED", "japón": "JPN", "japon": "JPN", "suecia": "SWE",
+    "túnez": "TUN", "tunez": "TUN", "bélgica": "BEL", "belgica": "BEL", "egipto": "EGY", "irán": "IRN",
+    "iran": "IRN", "nueva zelanda": "NZL", "españa": "ESP", "cabo verde": "CPV", "arabia": "KSA",
+    "uruguay": "URU", "francia": "FRA", "senegal": "SEN", "irak": "IRQ", "iraq": "IRQ", "noruega": "NOR",
+    "argentina": "ARG", "argelia": "ALG", "austria": "AUT", "jordania": "JOR", "portugal": "POR",
+    "congo": "COD", "uzbekistán": "UZB", "uzbekistan": "UZB", "colombia": "COL", "inglaterra": "ENG",
     "croacia": "CRO", "ghana": "GHA", "panamá": "PAN", "panama": "PAN"
 };
 
@@ -2409,7 +2614,7 @@ function activarVoz() {
 
 if (recognition) recognition.onresult = (event) => {
     const vozOriginal = event.results[event.results.length - 1][0].transcript.toLowerCase();
-    
+
     // Mostramos qué entendió
     Swal.fire({ title: 'Entendido:', text: `"${vozOriginal}"`, icon: 'success', toast: true, position: 'bottom', timer: 2000, showConfirmButton: false });
 
@@ -2434,7 +2639,7 @@ function extraerDatosPro(texto) {
 
     // 1. Limpiamos el texto para separar letras de números (ej: "fw05" -> "fw 05")
     const textoLimpio = texto.replace(/([a-z]+)(\d+)/i, '$1 $2');
-    
+
     // 2. Extraer el número
     const nMatch = textoLimpio.match(/\d+/);
     if (nMatch) num = parseInt(nMatch[0]);
@@ -2470,9 +2675,9 @@ function extraerDatosPro(texto) {
 
     // 4. Buscar en el diccionario principal de países
     for (let nombre in diccionarioPaises) {
-        if (textoLimpio.includes(nombre)) { 
-            cod = diccionarioPaises[nombre]; 
-            break; 
+        if (textoLimpio.includes(nombre)) {
+            cod = diccionarioPaises[nombre];
+            break;
         }
     }
 
@@ -2518,13 +2723,13 @@ function ejecutarCambioVoz(p1, n1, p2, n2) {
             else figuDoy.estado = "faltan";
 
             figuRecibo.estado = "tengo";
-            
-            renderMejorado(); 
+
+            renderMejorado();
             if(typeof guardarDatos === "function") guardarDatos();
 
-            Swal.fire({ 
-                title: '¡Cambio Exitoso!', 
-                text: `${pais1} ${n1} → ${pais2} ${n2}`, 
+            Swal.fire({
+                title: '¡Cambio Exitoso!',
+                text: `${pais1} ${n1} → ${pais2} ${n2}`,
                 icon: 'success',
                 background: '#1a1a1a',
                 color: '#ffffff'
@@ -2580,7 +2785,7 @@ async function obtenerMiUrlDeIntercambio(sb = getSupabase(), userActual = null) 
 
 function limpiarQrGenerado(el) {
     if (!el) return;
-    el.querySelectorAll("canvas, img, table").forEach(node => node.remove());
+    el.innerHTML = "";
 }
 
 async function renderizarMiQR(sb = getSupabase(), userActual = null) {
