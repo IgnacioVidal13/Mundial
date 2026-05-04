@@ -3,8 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <title>Álbum Mundial - Gestión Pro</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;700&display=swap" rel="stylesheet">
 
@@ -140,118 +142,308 @@
             header { flex-direction: column; gap: 10px; }
             .busqueda-container { width: 95%; }
         }
+
+        #mi-qr-seccion, #buscar-amigo {
+            max-width: 560px;
+            margin: 20px auto;
+            padding: 16px;
+            border-radius: 10px;
+            background: rgba(0, 0, 0, 0.35);
+            border: 1px solid rgba(255, 215, 0, 0.5);
+        }
+        #mi-qr-seccion h3 { color: gold; }
+        #buscar-amigo { color: #f0f0f0; font-size: 14px; }
+        #mi-qr-seccion p { font-size: 14px; line-height: 1.4; opacity: 0.95; }
+        #qrcode { display: inline-block; margin: 10px 0; padding: 8px; background: #fff; border-radius: 8px; }
+        #codigo-input {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 10px 12px;
+            margin-bottom: 10px;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+            font-family: inherit;
+            font-size: 14px;
+        }
+        #buscar-amigo button {
+            padding: 10px 18px;
+            background: #2196F3;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        #aviso-file-protocol {
+            max-width: 560px;
+            margin: 12px auto;
+            padding: 12px 14px;
+            border-radius: 8px;
+            background: rgba(180, 40, 40, 0.35);
+            border: 1px solid #ff6b6b;
+            font-size: 14px;
+            line-height: 1.45;
+        }
+        #enlace-intercambio-wrap { max-width: 560px; margin: 12px auto 0; }
+        #enlace-intercambio-wrap label { display: block; margin-bottom: 6px; font-size: 14px; color: #e8e8e8; }
+        #enlace-intercambio {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 8px 10px;
+            font-size: 11px;
+            border-radius: 6px;
+            border: 1px solid #888;
+            font-family: Consolas, monospace;
+            word-break: break-all;
+        }
+        #enlace-intercambio-wrap .btn-copiar {
+            margin-top: 8px;
+            padding: 10px 16px;
+            background: #4CAF50;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        /* --- CRUCE INTERCAMBIO (QR) --- */
+        #panel-cruce-intercambio {
+            display: none;
+            max-width: 900px;
+            margin: 24px auto;
+            padding: 20px;
+            border-radius: 12px;
+            background: rgba(0, 0, 0, 0.55);
+            border: 2px solid gold;
+            color: #fff;
+        }
+        #panel-cruce-intercambio.visible { display: block; }
+        #panel-cruce-intercambio h3 { margin: 0 0 12px; color: gold; font-size: 1.2rem; }
+        #panel-cruce-intercambio .cruce-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+        @media (max-width: 700px) {
+            #panel-cruce-intercambio .cruce-grid { grid-template-columns: 1fr; }
+        }
+        #panel-cruce-intercambio .cruce-col {
+            background: rgba(255, 255, 255, 0.06);
+            border-radius: 8px;
+            padding: 12px;
+        }
+        #panel-cruce-intercambio .cruce-col h4 {
+            margin: 0 0 8px;
+            font-size: 0.95rem;
+        }
+        #panel-cruce-intercambio .cruce-col.yo h4 { color: #7ee787; }
+        #panel-cruce-intercambio .cruce-col.el h4 { color: #79c0ff; }
+        #panel-cruce-intercambio .lista-cruce {
+            max-height: 220px;
+            overflow-y: auto;
+            font-size: 13px;
+            line-height: 1.45;
+            font-family: Consolas, monospace;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        #panel-cruce-intercambio .resumen-cruce {
+            margin-top: 12px;
+            font-size: 15px;
+            font-weight: bold;
+            color: #ffd700;
+        }
+        #panel-cruce-intercambio .btn-cerrar-cruce {
+            margin-top: 14px;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            background: #444;
+            color: #fff;
+        }
+
+        .site-header {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+        .site-header .brand { color: gold; font-size: 22px; font-weight: 700; }
+        .site-header #nav-app {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 4px;
+        }
+        .header-auth {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .btn-iniciar-sesion {
+            padding: 10px 18px;
+            background: gold;
+            color: #111;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            font-family: inherit;
+        }
+        .btn-iniciar-sesion:hover { filter: brightness(1.05); }
+        #chip-email {
+            color: #b8e986;
+            font-size: 14px;
+            max-width: 200px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        #btn-salir-nav {
+            padding: 8px 14px;
+            background: #555;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            font-family: inherit;
+        }
+
+        #vista-bienvenida {
+            min-height: 50vh;
+            margin: 20px auto;
+            max-width: 520px;
+            padding: 48px 28px;
+            text-align: center;
+            color: #222;
+            background: #f8f8f8;
+            border-radius: 14px;
+            border: 1px solid #ddd;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        }
+        #vista-bienvenida h2 { margin: 0 0 12px; color: #111; font-size: 1.35rem; }
+        #vista-bienvenida p { margin: 0; line-height: 1.5; font-size: 16px; color: #444; }
+        body.sesion-activa #vista-bienvenida { display: none !important; }
+        #album-contenido { display: none; }
+        body.sesion-activa #album-contenido { display: block !important; }
+
+        #login-overlay .login-card { position: relative; }
+        #login-overlay .btn-cerrar-modal {
+            position: absolute;
+            top: 8px;
+            right: 10px;
+            width: 36px;
+            height: 36px;
+            border: none;
+            border-radius: 50%;
+            background: #eee;
+            color: #333;
+            font-size: 20px;
+            line-height: 1;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        #login-overlay .btn-cerrar-modal:hover { background: #ddd; }
+        .login-card .form-hint {
+            font-size: 12px;
+            color: #666;
+            text-align: left;
+            margin: 6px 0 10px;
+            line-height: 1.35;
+        }
+        .login-card .link-auth {
+            color: #1565c0;
+            cursor: pointer;
+            text-decoration: underline;
+            font-size: 13px;
+        }
+        .login-card .requisitos-pass {
+            font-size: 11px;
+            color: #555;
+            text-align: left;
+            margin: 0 0 10px;
+            padding-left: 18px;
+            line-height: 1.45;
+        }
+        .login-card input[type="text"],
+        .login-card input[type="email"],
+        .login-card input[type="password"] {
+            box-sizing: border-box;
+        }
     </style>
 </head>
 <body>
 
-    <!-- SISTEMA DE LOGIN Y REGISTRO (INDEPENDIENTE) -->
-<div id="login-overlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #111; z-index: 9999; display: flex; align-items: center; justify-content: center; font-family: 'Oswald', sans-serif;">
-    <div style="background: #ffffff; padding: 30px; border-radius: 15px; border: 2px solid gold; width: 90%; max-width: 400px; text-align: center;">
+    <!-- Login: se abre desde el header (Iniciar sesión) -->
+<div id="login-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.82); z-index: 9999; align-items: center; justify-content: center; font-family: 'Oswald', sans-serif;">
+    <div class="login-card" style="background: #ffffff; padding: 30px; border-radius: 15px; border: 2px solid gold; width: 90%; max-width: 400px; text-align: center;">
+        <button type="button" class="btn-cerrar-modal" onclick="cerrarLoginOverlay()" title="Cerrar">×</button>
         <div id="login-form">
-            <h2 style="color: rgb(0, 0, 0);">INICIAR SESIÓN</h2>
-            <input type="text" id="user-login" placeholder="Usuario" style="width: 100%; padding: 12px; margin: 10px 0; background: #9c9c9c; color: white; border: 1px solid #444; border-radius: 5px;">
-            <input type="password" id="pass-login" placeholder="Contraseña" style="width: 100%; padding: 12px; margin: 10px 0; background: #9c9c9c; color: white; border: 1px solid #444; border-radius: 5px;">
-            <button onclick="auth('login')" style="width: 100%; padding: 12px; background: rgb(187, 255, 255); border: none; font-weight: bold; cursor: pointer; margin-top: 10px;">ENTRAR</button>
-            <p style="color: #aaa; margin-top: 15px;">¿No tienes cuenta? <a href="#" onclick="toggleAuth()" style="color: gold;">Regístrate</a></p>
+            <h2 style="color: rgb(0, 0, 0); margin-top: 8px;">Iniciar sesión</h2>
+            <p class="form-hint">Entrá con el mismo correo con el que te registraste.</p>
+            <input type="email" id="user-login" placeholder="Correo electrónico" autocomplete="username" style="width: 100%; padding: 12px; margin: 10px 0; background: #9c9c9c; color: white; border: 1px solid #444; border-radius: 5px;">
+            <input type="password" id="pass-login" placeholder="Contraseña" autocomplete="current-password" style="width: 100%; padding: 12px; margin: 10px 0; background: #9c9c9c; color: white; border: 1px solid #444; border-radius: 5px;">
+            <p style="text-align: center; margin: 4px 0 8px;"><a href="#" class="link-auth" onclick="event.preventDefault(); recuperarPassword();">¿Olvidaste tu contraseña?</a></p>
+            <button type="button" onclick="auth('login')" style="width: 100%; padding: 12px; background: rgb(187, 255, 255); border: none; font-weight: bold; cursor: pointer; margin-top: 6px;">Entrar</button>
+            <p style="color: #666; margin-top: 16px; font-size: 14px;">¿Todavía no tenés cuenta? <a href="#" onclick="event.preventDefault(); toggleAuth();" style="color: #b8860b; font-weight: bold;">Crear cuenta</a></p>
         </div>
 
         <div id="register-form" style="display: none;">
-            <h2 style="color: #5e5e5e;">CREAR CUENTA</h2>
-            <input type="text" id="user-reg" placeholder="Nuevo Usuario" style="width: 100%; padding: 12px; margin: 10px 0; background: #9c9c9c; color: white; border: 1px solid #444; border-radius: 5px;">
-            <input type="password" id="pass-reg" placeholder="Contraseña" style="width: 100%; padding: 12px; margin: 10px 0; background: #9c9c9c; color: white; border: 1px solid #444; border-radius: 5px;">
-            <button onclick="auth('register')" style="width: 100%; padding: 12px; background: #4CAF50; color: white; border: none; font-weight: bold; cursor: pointer; margin-top: 10px;">REGISTRARME</button>
-            <p style="color: #aaa; margin-top: 15px;">¿Ya tienes cuenta? <a href="#" onclick="toggleAuth()" style="color: rgb(166, 255, 246);">Inicia sesión</a></p>
+            <h2 style="color: #5e5e5e; margin-top: 8px;">Crear cuenta</h2>
+            <p class="form-hint">El <strong>nombre público</strong> es el que verán tus amigos al cruzar figuritas (es único en toda la app).</p>
+            <input type="text" id="reg-username-public" placeholder="Nombre público (ej: nacho_figus)" maxlength="20" autocomplete="nickname" style="width: 100%; padding: 12px; margin: 8px 0; background: #e8e8e8; color: #111; border: 1px solid #444; border-radius: 5px;">
+            <p class="form-hint" style="margin-top: 0;">Solo letras minúsculas, números y guión bajo. Entre 3 y 20 caracteres.</p>
+            <input type="email" id="user-reg" placeholder="Correo electrónico" autocomplete="email" style="width: 100%; padding: 12px; margin: 8px 0; background: #9c9c9c; color: white; border: 1px solid #444; border-radius: 5px;">
+            <input type="password" id="pass-reg" placeholder="Contraseña" autocomplete="new-password" style="width: 100%; padding: 12px; margin: 8px 0; background: #9c9c9c; color: white; border: 1px solid #444; border-radius: 5px;">
+            <input type="password" id="reg-pass-confirm" placeholder="Repetir contraseña" autocomplete="new-password" style="width: 100%; padding: 12px; margin: 8px 0; background: #9c9c9c; color: white; border: 1px solid #444; border-radius: 5px;">
+            <p class="form-hint" style="margin-bottom: 4px;"><strong>Requisitos de la contraseña:</strong></p>
+            <ul class="requisitos-pass">
+                <li>Al menos <strong>8 caracteres</strong></li>
+                <li>Al menos <strong>una letra</strong></li>
+                <li>Al menos <strong>un número</strong></li>
+                <li>Al menos <strong>un símbolo</strong> (por ejemplo ! @ # $ %)</li>
+            </ul>
+            <button type="button" onclick="auth('register')" style="width: 100%; padding: 12px; background: #4CAF50; color: white; border: none; font-weight: bold; cursor: pointer; margin-top: 6px;">Registrarme</button>
+            <p style="color: #666; margin-top: 16px; font-size: 14px;">¿Ya tenés cuenta? <a href="#" onclick="event.preventDefault(); toggleAuth();" style="color: #00897b; font-weight: bold;">Iniciar sesión</a></p>
         </div>
     </div>
 </div>
 
-<script>
-    let usuarioActual = "";
-
-    function toggleAuth() {
-        const l = document.getElementById('login-form');
-        const r = document.getElementById('register-form');
-        l.style.display = l.style.display === 'none' ? 'block' : 'none';
-        r.style.display = r.style.display === 'none' ? 'block' : 'none';
-    }
-
-    function auth(tipo) {
-        const u = document.getElementById(tipo === 'login' ? 'user-login' : 'user-reg').value.trim().toLowerCase();
-        const p = document.getElementById(tipo === 'login' ? 'pass-login' : 'pass-reg').value;
-
-        if (!u || !p) return Swal.fire('Error', 'Completa los campos', 'error');
-
-        let usuarios = JSON.parse(localStorage.getItem('db_usuarios') || '{}');
-
-        if (tipo === 'register') {
-            if (usuarios[u]) return Swal.fire('Error', 'El usuario ya existe', 'error');
-            usuarios[u] = { password: p };
-            localStorage.setItem('db_usuarios', JSON.stringify(usuarios));
-            // Crear álbum vacío para el nuevo usuario
-            inicializar(); // Esta es TU función original
-            localStorage.setItem("figuritas_" + u, JSON.stringify(figuritas));
-            Swal.fire('Éxito', 'Cuenta creada. Ahora inicia sesión.', 'success');
-            toggleAuth();
-        } else {
-            if (usuarios[u] && usuarios[u].password === p) {
-                usuarioActual = u;
-                document.getElementById('login-overlay').style.display = 'none';
-                cargarDatosUsuario();
-            } else {
-                Swal.fire('Error', 'Credenciales inválidas', 'error');
-            }
-        }
-    }
-
-    function cargarDatosUsuario() {
-        const datos = localStorage.getItem("figuritas_" + usuarioActual);
-        if (datos) {
-            figuritas = JSON.parse(datos);
-        } else {
-            inicializar(); 
-        }
-        renderMejorado(); // Esta es TU función original
-    }
-
-    // SOBREESCRITURA SUTIL (Para que guarde por usuario sin borrar tu código)
-    const originalRenderMejorado = renderMejorado;
-    renderMejorado = function() {
-        originalRenderMejorado();
-        if (usuarioActual) {
-            localStorage.setItem("figuritas_" + usuarioActual, JSON.stringify(figuritas));
-        }
-    };
-</script>
-    
 <style>
-    /* Estilos extra solo para el login */
-    @keyframes shake {
-        0% { transform: translateX(0); }
-        25% { transform: translateX(5px); }
-        50% { transform: translateX(-5px); }
-        75% { transform: translateX(5px); }
-        100% { transform: translateX(0); }
-    }
-   /* Forzamos a SweetAlert a estar por encima del login */
     .swal2-container {
         z-index: 10000 !important;
     }
-
 </style>
 <!-- FIN DEL INICIO DE SESIÓN -->
 
-<header>
-    <div>MI LISTA MUNDIALISTA</div>
-    <nav>
+<header class="site-header">
+    <div class="brand">MI LISTA MUNDIALISTA</div>
+    <nav id="nav-app" class="hidden">
         <button class="todas" onclick="mostrar('todas')">Todas</button>
         <button class="tengo" onclick="mostrar('tengo')">Pegadas</button>
         <button class="repetidas" onclick="mostrar('repetidas')">Repetidas</button>
         <button class="faltan" onclick="mostrar('faltan')">Faltan</button>
         <button class="pdf" onclick="generarPDF()">Descargar PDF</button>
     </nav>
+    <div class="header-auth">
+        <button type="button" id="btn-abrir-login" class="btn-iniciar-sesion" onclick="abrirLogin()">Iniciar sesión</button>
+        <span id="chip-email" class="hidden"></span>
+        <button type="button" id="btn-salir-nav" class="hidden" onclick="cerrarSesion()">Salir</button>
+    </div>
 </header>
 
 <main>
+    <div id="vista-bienvenida">
+        <h2>Álbum Mundial</h2>
+        <p>Acá vas a llevar el control de tus figuritas, repetidas e intercambios.<br><strong>Iniciá sesión</strong> (arriba a la derecha) para entrar o crear una cuenta nueva.</p>
+    </div>
+    <div id="album-contenido">
     <div id="contador"></div>
 
     <div id="barra-container">
@@ -267,13 +459,686 @@
 </button>
     </div>
 
+    <!-- Sección para que otros me escaneen -->
+<div id="mi-qr-seccion">
+    <h3>Mi código de intercambio</h3>
+    <p id="aviso-file-protocol" class="hidden">Estás abriendo la página como <strong>archivo</strong> (ruta que empieza con <code>file://</code>). En muchos celulares el QR <strong>no abre bien</strong> el cruce. Subí la carpeta a un hosting gratis (por ejemplo GitHub Pages) o usá «Copiar enlace» y mandá el link por WhatsApp.</p>
+    <p id="txt-qr-explicacion">Con Supabase configurado, el QR lleva un <strong>código corto</strong> (<code>ref=</code>) que busca tu álbum en la nube. Sin Supabase, el enlace lleva el álbum comprimido en la URL.</p>
+    <div id="qrcode" aria-label="Código QR de intercambio"></div>
+    <div id="enlace-intercambio-wrap">
+        <label for="enlace-intercambio">Si el QR no lee bien, copiá este enlace y enviáselo a tu amigo:</label>
+        <input type="text" id="enlace-intercambio" readonly placeholder="Iniciá sesión para generar el enlace…">
+        <button type="button" class="btn-copiar" onclick="copiarEnlaceIntercambio()">Copiar enlace</button>
+    </div>
+    <p class="nota-codigo-corto" style="font-size:13px;opacity:.88;margin-top:12px;">En Supabase ejecutá el SQL de <code>supabase.sql</code> (incluye álbum, QR corto y <strong>nombre público único</strong>).</p>
+</div>
+
+<!-- Buscador manual por código -->
+<div id="buscar-amigo">
+    <input type="text" id="codigo-input" placeholder="Pegá el enlace, o solo el código de 10 letras (ref) si usan Supabase">
+    <button onclick="procesarIntercambioManual()">Comparar</button>
+</div>
+
+    <div id="panel-cruce-intercambio" aria-live="polite">
+        <h3 id="cruce-titulo">Cruce de intercambio</h3>
+        <p id="cruce-subtitulo" style="margin:0 0 12px;opacity:.9;font-size:14px;"></p>
+        <div class="cruce-grid">
+            <div class="cruce-col yo">
+                <h4>Repetidas tuyas que le sirven a tu amigo</h4>
+                <div class="lista-cruce" id="cruce-yo-le-doy"></div>
+            </div>
+            <div class="cruce-col el">
+                <h4>Repetidas de tu amigo que te sirven a vos</h4>
+                <div class="lista-cruce" id="cruce-el-me-da"></div>
+            </div>
+        </div>
+        <div class="resumen-cruce" id="cruce-resumen"></div>
+        <button type="button" class="btn-cerrar-cruce" onclick="ocultarPanelCruce()">Ocultar panel</button>
+    </div>
+
     <section id="todas"></section>
     <section id="tengo" class="hidden"></section>
     <section id="repetidas" class="hidden"></section>
     <section id="faltan" class="hidden"></section>
+    </div>
 </main>
 
 <script>
+    const SUPABASE_URL = "https://ejmztjclypvlonkvvbxy.supabase.co";
+    const SUPABASE_ANON_KEY = "sb_publishable_Rmpo2vOz1dnPAy54uEq9BQ_BcNVJNNR";
+
+    const swalBase = { background: "#1a1a1a", color: "#ffffff", confirmButtonColor: "#2196F3" };
+
+    let sbClient = null;
+    function getSupabase() {
+        if (sbClient) return sbClient;
+        if (typeof supabase === "undefined" || !supabase || !supabase.createClient) return null;
+        const url = String(SUPABASE_URL || "").trim();
+        const key = String(SUPABASE_ANON_KEY || "").trim();
+        if (!url.startsWith("https://") || key.length < 10) return null;
+        try {
+            sbClient = supabase.createClient(url, key, {
+                auth: {
+                    detectSessionInUrl: true,
+                    flowType: "pkce"
+                }
+            });
+        } catch (e) {
+            console.error(e);
+            return null;
+        }
+        return sbClient;
+    }
+
+    let usuarioActual = "";
+    let nombreVisibleUsuario = "";
+
+    function normalizarNombreUsuario(raw) {
+        return String(raw || "")
+            .trim()
+            .toLowerCase()
+            .replace(/\s+/g, "_")
+            .replace(/[^a-z0-9_]/g, "");
+    }
+
+    function validarNombreUsuarioPublico(norm) {
+        if (norm.length < 3) return "El nombre público necesita al menos 3 caracteres (letras o números).";
+        if (norm.length > 20) return "Como máximo 20 caracteres.";
+        if (!/^[a-z0-9_]+$/.test(norm)) return "Solo letras de la a a la z, números y guión bajo (_), sin espacios.";
+        return null;
+    }
+
+    function validarPasswordRegistro(pw) {
+        if (!pw || pw.length < 8) return "Usá al menos 8 caracteres.";
+        if (!/[a-záéíóúñü]/i.test(pw)) return "Falta al menos una letra.";
+        if (!/[0-9]/.test(pw)) return "Falta al menos un número.";
+        if (!/[^A-Za-zÁÉÍÓÚÑÜáéíóúñü0-9]/.test(pw)) return "Falta al menos un símbolo (ej.: ! @ # ? %).";
+        return null;
+    }
+
+    function nombreUsuarioLocalDisponible(norm) {
+        const usuarios = JSON.parse(localStorage.getItem("db_usuarios") || "{}");
+        for (const mail of Object.keys(usuarios)) {
+            const u = usuarios[mail];
+            if (u && u.username && String(u.username).toLowerCase() === norm) return false;
+        }
+        return true;
+    }
+
+    async function nombreUsuarioSupabaseDisponible(norm) {
+        const sb = getSupabase();
+        if (!sb) return true;
+        const { data, error } = await sb.rpc("username_disponible", { p_username: norm });
+        if (error) {
+            console.error(error);
+            return null;
+        }
+        return data === true;
+    }
+
+    function obtenerNombreParaAmigos() {
+        if (typeof nombreVisibleUsuario === "string" && nombreVisibleUsuario.trim())
+            return nombreVisibleUsuario.trim().slice(0, 80);
+        if (usuarioActual && usuarioActual.includes("@")) return usuarioActual.split("@")[0].slice(0, 80);
+        return usuarioActual ? usuarioActual.slice(0, 80) : "Amigo";
+    }
+
+    function actualizarTextoChipUsuario() {
+        const chip = document.getElementById("chip-email");
+        if (!chip || !usuarioActual) return;
+        chip.textContent = obtenerNombreParaAmigos() + " · " + usuarioActual;
+    }
+
+    async function syncPerfilUsuarioSupabase(user) {
+        const sb = getSupabase();
+        if (!sb || !user) return;
+        const { data: prof, error: e0 } = await sb.from("profiles").select("username").eq("id", user.id).maybeSingle();
+        if (e0) console.warn(e0);
+        if (prof && prof.username) return;
+        const meta = user.user_metadata && user.user_metadata.username;
+        if (!meta) return;
+        const norm = normalizarNombreUsuario(meta);
+        if (norm.length < 3) return;
+        const { error } = await sb.from("profiles").insert({ id: user.id, username: norm });
+        if (error) console.warn("sync perfil desde metadata:", error.message);
+    }
+
+    async function cargarNombreVisibleUsuario() {
+        nombreVisibleUsuario = "";
+        const sb = getSupabase();
+        if (sb && usuarioActual) {
+            const { data: { user } } = await sb.auth.getUser();
+            if (user) {
+                const { data, error } = await sb.from("profiles").select("username").eq("id", user.id).maybeSingle();
+                if (!error && data && data.username) nombreVisibleUsuario = data.username;
+                else if (user.user_metadata && user.user_metadata.username)
+                    nombreVisibleUsuario = normalizarNombreUsuario(user.user_metadata.username);
+            }
+        } else if (usuarioActual) {
+            const users = JSON.parse(localStorage.getItem("db_usuarios") || "{}");
+            const u = users[usuarioActual];
+            if (u && u.username) nombreVisibleUsuario = String(u.username);
+        }
+        actualizarTextoChipUsuario();
+    }
+
+    function aplicarSesionActivaUI(activa) {
+        document.body.classList.toggle("sesion-activa", !!activa);
+        const nav = document.getElementById("nav-app");
+        const btnIn = document.getElementById("btn-abrir-login");
+        const btnOut = document.getElementById("btn-salir-nav");
+        const chip = document.getElementById("chip-email");
+        const ov = document.getElementById("login-overlay");
+        if (nav) nav.classList.toggle("hidden", !activa);
+        if (btnIn) btnIn.classList.toggle("hidden", !!activa);
+        if (btnOut) btnOut.classList.toggle("hidden", !activa);
+        if (chip) {
+            chip.classList.toggle("hidden", !activa);
+            if (activa && usuarioActual) actualizarTextoChipUsuario();
+        }
+        if (ov && !activa) ov.style.display = "none";
+    }
+
+    function abrirLogin() {
+        const ov = document.getElementById("login-overlay");
+        if (!ov) return;
+        ov.style.display = "flex";
+        ov.style.alignItems = "center";
+        ov.style.justifyContent = "center";
+    }
+
+    function cerrarLoginOverlay() {
+        const ov = document.getElementById("login-overlay");
+        if (ov) ov.style.display = "none";
+    }
+
+    function mensajeAuthError(error) {
+        const raw = (error && error.message) ? String(error.message) : "Error desconocido";
+        const m = raw.toLowerCase();
+        if (m.includes("already registered") || m.includes("user already registered") || m.includes("already been registered"))
+            return { title: "Ese correo ya está registrado", text: "Probá iniciar sesión. Si no recordás la contraseña, usá «¿Olvidaste tu contraseña?».", icon: "warning" };
+        if (m.includes("invalid login credentials") || m.includes("invalid_credentials"))
+            return { title: "Correo o contraseña incorrectos", text: "Revisá mayúsculas y que no haya espacios de más. Si acabás de registrarte, puede que falte confirmar el email.", icon: "error" };
+        if (m.includes("email not confirmed"))
+            return { title: "Falta confirmar el correo", text: "Abrí el enlace que te enviamos (revisá carpeta spam). Después podés entrar con tu clave.", icon: "info" };
+        if (m.includes("password") && (m.includes("least") || m.includes("short") || m.includes("6")))
+            return { title: "Contraseña rechazada", text: "El servidor pide una clave más larga o distinta. Revisá los requisitos en «Crear cuenta».", icon: "warning" };
+        if (m.includes("invalid email") || m.includes("email format"))
+            return { title: "Correo no válido", text: "Parece que el email no tiene un formato correcto.", icon: "error" };
+        if (m.includes("signup_disabled") || m.includes("signups not allowed"))
+            return { title: "Registro no disponible", text: "En este proyecto no se aceptan cuentas nuevas por ahora.", icon: "error" };
+        if (m.includes("rate limit") || m.includes("too many requests"))
+            return { title: "Demasiados intentos", text: "Esperá un minuto y volvé a probar.", icon: "warning" };
+        return { title: "No se pudo completar", text: raw, icon: "error" };
+    }
+
+    function toggleAuth() {
+        const l = document.getElementById("login-form");
+        const r = document.getElementById("register-form");
+        l.style.display = l.style.display === "none" ? "block" : "none";
+        r.style.display = r.style.display === "none" ? "block" : "none";
+    }
+
+    async function auth(tipo) {
+        const email = document.getElementById(tipo === "login" ? "user-login" : "user-reg").value.trim().toLowerCase();
+        const password = document.getElementById(tipo === "login" ? "pass-login" : "pass-reg").value;
+        if (!email || !password) {
+            return Swal.fire({
+                title: "Completá los datos",
+                text: "Necesitamos tu correo y tu contraseña para continuar.",
+                icon: "warning",
+                ...swalBase
+            });
+        }
+
+        const sb = getSupabase();
+        if (sb) {
+            if (tipo === "register") {
+                const rawNombre = document.getElementById("reg-username-public").value;
+                const normNombre = normalizarNombreUsuario(rawNombre);
+                const errNom = validarNombreUsuarioPublico(normNombre);
+                if (errNom) {
+                    return Swal.fire({ title: "Nombre público", text: errNom, icon: "warning", ...swalBase });
+                }
+                const pass2 = document.getElementById("reg-pass-confirm").value;
+                if (password !== pass2) {
+                    return Swal.fire({
+                        title: "Las contraseñas no coinciden",
+                        text: "Volvé a escribir la misma contraseña en los dos campos.",
+                        icon: "warning",
+                        ...swalBase
+                    });
+                }
+                const errPw = validarPasswordRegistro(password);
+                if (errPw) {
+                    return Swal.fire({ title: "Contraseña", text: errPw, icon: "warning", ...swalBase });
+                }
+
+                const disp = await nombreUsuarioSupabaseDisponible(normNombre);
+                if (disp === null) {
+                    return Swal.fire({
+                        title: "No pudimos validar el nombre",
+                        text: "¿Ejecutaste el SQL nuevo en Supabase (tabla profiles y función username_disponible)? Revisá la consola por errores.",
+                        icon: "error",
+                        ...swalBase
+                    });
+                }
+                if (!disp) {
+                    return Swal.fire({
+                        title: "Nombre ya en uso",
+                        text: "Elegí otro nombre público; ese ya lo tiene otra persona.",
+                        icon: "warning",
+                        ...swalBase
+                    });
+                }
+
+                const { data, error } = await sb.auth.signUp({
+                    email,
+                    password,
+                    options: { data: { username: normNombre } }
+                });
+                if (error) {
+                    const x = mensajeAuthError(error);
+                    return Swal.fire({ ...x, ...swalBase });
+                }
+
+                if (data.session && data.user) {
+                    const { error: pe } = await sb.from("profiles").insert({ id: data.user.id, username: normNombre });
+                    if (pe) {
+                        await sb.auth.signOut();
+                        if (pe.code === "23505") {
+                            return Swal.fire({
+                                title: "Nombre tomado",
+                                text: "En el último momento otro usuario registró ese nombre. Probá con otro.",
+                                icon: "warning",
+                                ...swalBase
+                            });
+                        }
+                        return Swal.fire({ title: "Error al guardar el perfil", text: pe.message, icon: "error", ...swalBase });
+                    }
+                    usuarioActual = (data.user.email || email).trim().toLowerCase();
+                    nombreVisibleUsuario = normNombre;
+                    cerrarLoginOverlay();
+                    await cargarDatosUsuario();
+                    aplicarSesionActivaUI(true);
+                    return Swal.fire({
+                        title: "¡Listo!",
+                        text: "Tu cuenta quedó creada. Ya podés cargar tu álbum.",
+                        icon: "success",
+                        ...swalBase
+                    });
+                }
+
+                await Swal.fire({
+                    title: "Te enviamos un correo",
+                    html: "Abrí el mensaje y tocá el <strong>enlace de confirmación</strong> para activar la cuenta. Después entrá con tu correo y contraseña.<br><small>(Si no ves el mail, mirá spam.)</small>",
+                    icon: "success",
+                    ...swalBase
+                });
+                toggleAuth();
+                return;
+            }
+
+            const { data, error } = await sb.auth.signInWithPassword({ email, password });
+            if (error) {
+                const x = mensajeAuthError(error);
+                return Swal.fire({ ...x, ...swalBase });
+            }
+            usuarioActual = (data.user.email || email).trim().toLowerCase();
+            cerrarLoginOverlay();
+            await cargarDatosUsuario();
+            aplicarSesionActivaUI(true);
+            return Swal.fire({
+                title: "¡Hola de nuevo!",
+                text: "Sesión iniciada.",
+                icon: "success",
+                timer: 2000,
+                showConfirmButton: false,
+                ...swalBase
+            });
+        }
+
+        let usuarios = JSON.parse(localStorage.getItem("db_usuarios") || "{}");
+        if (tipo === "register") {
+            const rawNombre = document.getElementById("reg-username-public").value;
+            const normNombre = normalizarNombreUsuario(rawNombre);
+            const errNom = validarNombreUsuarioPublico(normNombre);
+            if (errNom) {
+                return Swal.fire({ title: "Nombre público", text: errNom, icon: "warning", ...swalBase });
+            }
+            if (!nombreUsuarioLocalDisponible(normNombre)) {
+                return Swal.fire({
+                    title: "Nombre ya en uso",
+                    text: "Elegí otro nombre público; en este dispositivo ya está tomado.",
+                    icon: "warning",
+                    ...swalBase
+                });
+            }
+            const pass2 = document.getElementById("reg-pass-confirm").value;
+            if (password !== pass2) {
+                return Swal.fire({
+                    title: "Las contraseñas no coinciden",
+                    text: "Repetí exactamente la misma contraseña.",
+                    icon: "warning",
+                    ...swalBase
+                });
+            }
+            const errPw = validarPasswordRegistro(password);
+            if (errPw) {
+                return Swal.fire({ title: "Contraseña", text: errPw, icon: "warning", ...swalBase });
+            }
+            if (usuarios[email]) {
+                return Swal.fire({
+                    title: "Correo ya registrado",
+                    text: "Ese email ya tiene cuenta en este navegador. Iniciá sesión o usá otro correo.",
+                    icon: "warning",
+                    ...swalBase
+                });
+            }
+            usuarios[email] = { password, username: normNombre };
+            localStorage.setItem("db_usuarios", JSON.stringify(usuarios));
+            inicializar();
+            localStorage.setItem("figuritas_" + email, JSON.stringify(figuritas));
+            await Swal.fire({
+                title: "Cuenta creada",
+                text: "Ahora iniciá sesión con el mismo correo y contraseña.",
+                icon: "success",
+                ...swalBase
+            });
+            toggleAuth();
+            return;
+        }
+        if (usuarios[email] && usuarios[email].password === password) {
+            usuarioActual = email;
+            cerrarLoginOverlay();
+            await cargarDatosUsuario();
+            aplicarSesionActivaUI(true);
+            return Swal.fire({
+                title: "¡Hola de nuevo!",
+                text: "Sesión iniciada.",
+                icon: "success",
+                timer: 2000,
+                showConfirmButton: false,
+                ...swalBase
+            });
+        }
+        return Swal.fire({
+            title: "No encontramos la cuenta",
+            text: "El correo o la contraseña no coinciden. Si no tenés cuenta, creá una desde «Crear cuenta».",
+            icon: "error",
+            ...swalBase
+        });
+    }
+
+    async function recuperarPassword() {
+        const sb = getSupabase();
+        if (!sb) {
+            return Swal.fire({
+                title: "Recuperación por correo",
+                text: "Esta opción usa Supabase. En modo solo local no hay envío de email: creá otra cuenta o borrá los datos del sitio en el navegador si es tuyo.",
+                icon: "info",
+                ...swalBase
+            });
+        }
+        const pre = document.getElementById("user-login").value.trim().toLowerCase();
+        const { value: emailIn } = await Swal.fire({
+            title: "Recuperar contraseña",
+            html: "<p style='margin:0 0 12px;text-align:left'>Te enviamos un enlace al correo para elegir una contraseña nueva (revisá spam).</p>",
+            input: "email",
+            inputValue: pre,
+            showCancelButton: true,
+            confirmButtonText: "Enviar enlace",
+            cancelButtonText: "Cancelar",
+            inputValidator: (v) => {
+                if (!v || !String(v).includes("@")) return "Ingresá un correo válido";
+            },
+            ...swalBase
+        });
+        if (!emailIn) return;
+        const redirectTo = window.location.href.split("#")[0].split("?")[0];
+        const { error } = await sb.auth.resetPasswordForEmail(String(emailIn).trim().toLowerCase(), { redirectTo });
+        if (error) {
+            const x = mensajeAuthError(error);
+            return Swal.fire({ ...x, ...swalBase });
+        }
+        await Swal.fire({
+            title: "Listo",
+            html: "Si el correo está registrado, <strong>Supabase</strong> envió el enlace. Abrilo en el mismo navegador donde usás el álbum.",
+            icon: "success",
+            ...swalBase
+        });
+    }
+
+    let _recoveryPwdUiAbierta = false;
+    async function pedirNuevaPasswordTrasRecovery() {
+        const sb = getSupabase();
+        if (!sb || _recoveryPwdUiAbierta) return;
+        _recoveryPwdUiAbierta = true;
+        const { value: nueva } = await Swal.fire({
+            title: "Elegí una contraseña nueva",
+            html:
+                '<input id="swal-np1" type="password" class="swal2-input" placeholder="Nueva contraseña" style="max-width:100%;box-sizing:border-box">' +
+                '<input id="swal-np2" type="password" class="swal2-input" placeholder="Repetir contraseña" style="max-width:100%;box-sizing:border-box;margin-top:8px">',
+            focusConfirm: false,
+            showCancelButton: true,
+            confirmButtonText: "Guardar",
+            cancelButtonText: "Cancelar",
+            preConfirm: () => {
+                const a = document.getElementById("swal-np1").value;
+                const b = document.getElementById("swal-np2").value;
+                if (a !== b) {
+                    Swal.showValidationMessage("Las contraseñas no coinciden.");
+                    return false;
+                }
+                const err = validarPasswordRegistro(a);
+                if (err) {
+                    Swal.showValidationMessage(err);
+                    return false;
+                }
+                return a;
+            },
+            ...swalBase
+        });
+        if (!nueva) {
+            _recoveryPwdUiAbierta = false;
+            return;
+        }
+        const { error } = await sb.auth.updateUser({ password: nueva });
+        if (error) {
+            _recoveryPwdUiAbierta = false;
+            const x = mensajeAuthError(error);
+            return Swal.fire({ ...x, ...swalBase });
+        }
+        await Swal.fire({
+            title: "Contraseña actualizada",
+            text: "Ya podés usar tu nueva clave. Si no entrás solo, tocá «Iniciar sesión».",
+            icon: "success",
+            ...swalBase
+        });
+        _recoveryPwdUiAbierta = false;
+    }
+
+    async function guardarProgresoSupabase() {
+        const sb = getSupabase();
+        if (!sb) return;
+        const { data: { user } } = await sb.auth.getUser();
+        if (!user) return;
+        const { error } = await sb.from("progreso_album").upsert(
+            {
+                id: user.id,
+                email: user.email,
+                data: figuritas,
+                updated_at: new Date().toISOString()
+            },
+            { onConflict: "id" }
+        );
+        if (error) console.error("guardarProgresoSupabase:", error.message);
+    }
+
+    function guardarDatos() {
+        void guardarProgresoSupabase();
+    }
+
+    let _saveCloudTimer;
+    function scheduleSaveCloud() {
+        if (!getSupabase()) return;
+        clearTimeout(_saveCloudTimer);
+        _saveCloudTimer = setTimeout(() => void guardarProgresoSupabase(), 900);
+    }
+
+    function generarCodigoIntercambio(len = 10) {
+        const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+        const a = new Uint8Array(len);
+        crypto.getRandomValues(a);
+        let s = "";
+        for (let i = 0; i < len; i++) s += chars[a[i] % chars.length];
+        return s;
+    }
+
+    /** Publica/actualiza el álbum para el QR corto (tabla album_intercambios). */
+    async function upsertAlbumSharePayload() {
+        const sb = getSupabase();
+        if (!sb) return null;
+        const { data: { user } } = await sb.auth.getUser();
+        if (!user || !figuritas || !figuritas.length) return null;
+        const payload = await albumPayloadStringForUrl(figuritas, obtenerNombreParaAmigos() || user.email || "Amigo");
+        const expires = new Date(Date.now() + 14 * 24 * 3600 * 1000).toISOString();
+
+        const { data: row, error: selErr } = await sb.from("album_intercambios").select("code").eq("owner_id", user.id).maybeSingle();
+        if (selErr) {
+            console.error(selErr);
+            return null;
+        }
+
+        if (row && row.code) {
+            const { error: upErr } = await sb.from("album_intercambios").update({ payload, expires_at: expires }).eq("owner_id", user.id);
+            if (upErr) {
+                console.error(upErr);
+                return null;
+            }
+            return row.code;
+        }
+
+        for (let intento = 0; intento < 5; intento++) {
+            const code = generarCodigoIntercambio(10);
+            const { error: insErr } = await sb.from("album_intercambios").insert({
+                owner_id: user.id,
+                code,
+                payload,
+                expires_at: expires
+            });
+            if (!insErr) return code;
+            if (insErr.code !== "23505") {
+                console.error(insErr);
+                return null;
+            }
+        }
+        return null;
+    }
+
+    async function cargarDatosUsuario() {
+        const sb = getSupabase();
+        if (sb) {
+            const { data: { user } } = await sb.auth.getUser();
+            if (!user) return;
+            usuarioActual = (user.email || "").trim().toLowerCase();
+
+            const { data: row, error } = await sb.from("progreso_album").select("data").eq("id", user.id).maybeSingle();
+            if (error) console.error(error);
+
+            if (row && row.data && Array.isArray(row.data) && row.data.length) {
+                figuritas = row.data;
+            } else {
+                const claveUser = "figuritas_" + usuarioActual;
+                const datos = localStorage.getItem(claveUser);
+                const legacy = localStorage.getItem("figuritas");
+                let migrado = null;
+                if (datos) {
+                    try {
+                        migrado = JSON.parse(datos);
+                    } catch (e) {
+                        migrado = null;
+                    }
+                }
+                if (!migrado && legacy) {
+                    try {
+                        migrado = JSON.parse(legacy);
+                    } catch (e) {
+                        migrado = null;
+                    }
+                }
+                if (migrado && migrado.length) {
+                    figuritas = migrado;
+                    await guardarProgresoSupabase();
+                } else {
+                    inicializar();
+                }
+            }
+            await syncPerfilUsuarioSupabase(user);
+            await cargarNombreVisibleUsuario();
+        } else {
+            const claveUser = "figuritas_" + usuarioActual;
+            const datos = localStorage.getItem(claveUser);
+            if (datos) {
+                try {
+                    figuritas = JSON.parse(datos);
+                } catch (e) {
+                    inicializar();
+                }
+            } else {
+                const legacy = localStorage.getItem("figuritas");
+                if (legacy) {
+                    try {
+                        figuritas = JSON.parse(legacy);
+                        localStorage.setItem(claveUser, legacy);
+                    } catch (e) {
+                        inicializar();
+                    }
+                } else {
+                    inicializar();
+                }
+            }
+            await cargarNombreVisibleUsuario();
+        }
+        renderMejorado();
+        mostrar("todas");
+        void renderizarMiQR();
+        if (typeof intentarCruceDesdeURL === "function") void intentarCruceDesdeURL();
+        if (usuarioActual) aplicarSesionActivaUI(true);
+    }
+
+    async function cerrarSesion() {
+        const sb = getSupabase();
+        if (sb) await sb.auth.signOut();
+        usuarioActual = "";
+        nombreVisibleUsuario = "";
+        cerrarLoginOverlay();
+        inicializar();
+        aplicarSesionActivaUI(false);
+        renderMejorado();
+    }
+
+    let _authListenerReady = false;
+    function initSupabaseAuthListener() {
+        const sb = getSupabase();
+        if (!sb || _authListenerReady) return;
+        _authListenerReady = true;
+        sb.auth.onAuthStateChange(async (event) => {
+            if (event === "PASSWORD_RECOVERY") {
+                await pedirNuevaPasswordTrasRecovery();
+                return;
+            }
+            if (event === "SIGNED_OUT") {
+                usuarioActual = "";
+                nombreVisibleUsuario = "";
+                cerrarLoginOverlay();
+                inicializar();
+                aplicarSesionActivaUI(false);
+                renderMejorado();
+            }
+        });
+    }
+
     const codigos = [
         "FWC","MEX","RSA","KOR","CZE","CAN","BIH","QAT","SUI","BRA",
         "MAR","HAI","SCO","USA","PAR","AUS","TUR","GER","CUW",
@@ -300,6 +1165,330 @@
                 });
             }
         });
+    }
+
+    /** Mismo orden que `inicializar()` (para codificar/decodificar bytes del QR). */
+    function ordenAlbumIds() {
+        const ids = [];
+        codigos.forEach((codigo) => {
+            const inicio = codigo === "FWC" ? 0 : 1;
+            const fin = codigo === "FWC" ? 19 : 20;
+            for (let i = inicio; i <= fin; i++) {
+                ids.push(`${codigo} ${i.toString().padStart(2, "0")}`);
+            }
+        });
+        return ids;
+    }
+
+    function bytesToBase64url(bytes) {
+        let bin = "";
+        for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+        return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+    }
+
+    function base64urlToBytes(s) {
+        if (!s || typeof s !== "string") return null;
+        let t = s.replace(/-/g, "+").replace(/_/g, "/");
+        while (t.length % 4) t += "=";
+        const bin = atob(t);
+        const out = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+        return out;
+    }
+
+    /** Byte por figurita: 0 = falta, 1 = tengo sin repes, 2+ = tengo con (byte-1) repetidas. */
+    function albumBytesFromFiguritas(figs) {
+        const out = new Uint8Array(figs.length);
+        for (let i = 0; i < figs.length; i++) {
+            const f = figs[i];
+            if (f.estado !== "tengo") out[i] = 0;
+            else {
+                const c = Math.min(254, Math.max(0, parseInt(f.cantidad, 10) || 0));
+                out[i] = 1 + c;
+            }
+        }
+        return out;
+    }
+
+    /** Buffer interno v1: [1][nameLen][name utf8…][albumBytes…] */
+    function buildAlbumInnerBuffer(figs, displayName) {
+        const albumBytes = albumBytesFromFiguritas(figs);
+        const enc = new TextEncoder().encode(String(displayName || "Amigo").slice(0, 80));
+        const nameLen = Math.min(80, enc.length);
+        const buf = new Uint8Array(2 + nameLen + albumBytes.length);
+        buf[0] = 1;
+        buf[1] = nameLen;
+        buf.set(enc.slice(0, nameLen), 2);
+        buf.set(albumBytes, 2 + nameLen);
+        return buf;
+    }
+
+    function decodeAlbumBuffer(buf) {
+        if (!buf || buf.length < 3 || buf[0] !== 1) return null;
+        const nameLen = buf[1];
+        if (2 + nameLen > buf.length) return null;
+        const displayName = new TextDecoder().decode(buf.slice(2, 2 + nameLen));
+        const albumBytes = buf.slice(2 + nameLen);
+        return { displayName: displayName || "Amigo", albumBytes };
+    }
+
+    /** Compatibilidad: payload antiguo = solo base64url del buffer v1 (sin prefijo). */
+    function decodeAlbumPayloadSync(b64) {
+        try {
+            const buf = base64urlToBytes(b64);
+            return decodeAlbumBuffer(buf);
+        } catch (e) {
+            return null;
+        }
+    }
+
+    async function deflateRaw(u8) {
+        const stream = new Blob([u8]).stream().pipeThrough(new CompressionStream("deflate"));
+        const ab = await new Response(stream).arrayBuffer();
+        return new Uint8Array(ab);
+    }
+
+    async function inflateRaw(u8) {
+        const stream = new Blob([u8]).stream().pipeThrough(new DecompressionStream("deflate"));
+        const ab = await new Response(stream).arrayBuffer();
+        return new Uint8Array(ab);
+    }
+
+    /**
+     * Prefijo z = deflate del buffer v1 (URL mucho más corta → QR escaneable).
+     * Sin prefijo = formato anterior (base64url directo del buffer).
+     */
+    async function albumPayloadStringForUrl(figs, displayName) {
+        const inner = buildAlbumInnerBuffer(figs, displayName);
+        if (typeof CompressionStream !== "undefined") {
+            try {
+                const deflated = await deflateRaw(inner);
+                return "z" + bytesToBase64url(deflated);
+            } catch (e) {
+                console.warn("No se pudo comprimir el enlace:", e);
+            }
+        }
+        return bytesToBase64url(inner);
+    }
+
+    async function decodeAlbumPayloadFlexible(payload) {
+        if (!payload || typeof payload !== "string") return null;
+        const p = payload.trim();
+        if (p.startsWith("z")) {
+            try {
+                const raw = base64urlToBytes(p.slice(1));
+                const inner = await inflateRaw(raw);
+                return decodeAlbumBuffer(inner);
+            } catch (e) {
+                console.warn("inflate:", e);
+                return null;
+            }
+        }
+        return decodeAlbumPayloadSync(p);
+    }
+
+    function cruzarAlbumBytes(miBytes, suBytes, ids) {
+        const yoLeSirvo = [];
+        const elMeSirve = [];
+        const n = Math.min(miBytes.length, suBytes.length, ids.length);
+        for (let i = 0; i < n; i++) {
+            const mb = miBytes[i];
+            const sb = suBytes[i];
+            if (mb >= 2 && sb === 0) yoLeSirvo.push({ id: ids[i], repes: mb - 1 });
+            if (sb >= 2 && mb === 0) elMeSirve.push({ id: ids[i], repes: sb - 1 });
+        }
+        return { yoLeSirvo, elMeSirve };
+    }
+
+    function formatearListaCruce(items) {
+        if (!items.length) return "(ninguna)";
+        const porCodigo = {};
+        items.forEach(({ id, repes }) => {
+            const [cod, num] = id.split(" ");
+            if (!porCodigo[cod]) porCodigo[cod] = [];
+            porCodigo[cod].push(repes > 1 ? `${num}×${repes}` : num);
+        });
+        return Object.keys(porCodigo)
+            .sort()
+            .map((cod) => `${cod}: ${porCodigo[cod].join(", ")}`)
+            .join("\n");
+    }
+
+    function ocultarPanelCruce() {
+        const p = document.getElementById("panel-cruce-intercambio");
+        if (p) p.classList.remove("visible");
+    }
+
+    function mostrarResultadoCruce(nombreAmigo, cruce) {
+        const panel = document.getElementById("panel-cruce-intercambio");
+        if (!panel) return;
+        document.getElementById("cruce-titulo").textContent = "Cruce automático (repetidas ↔ faltantes)";
+        document.getElementById("cruce-subtitulo").textContent =
+            `Comparando tu álbum con el de: ${nombreAmigo}. ` +
+            "Vos le podés dar repetidas que a él le faltan; él te puede dar repetidas que a vos te faltan.";
+        document.getElementById("cruce-yo-le-doy").textContent = formatearListaCruce(cruce.yoLeSirvo);
+        document.getElementById("cruce-el-me-da").textContent = formatearListaCruce(cruce.elMeSirve);
+        document.getElementById("cruce-resumen").textContent =
+            `Podés ofrecerle ${cruce.yoLeSirvo.length} figurita(s) · Te conviene pedirle ${cruce.elMeSirve.length} figurita(s)`;
+        panel.classList.add("visible");
+        panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+
+    async function ejecutarCruceConPayload(payload) {
+        if (!payload) return false;
+
+        const decoded = await decodeAlbumPayloadFlexible(payload);
+        if (!decoded) {
+            Swal.fire({
+                title: "Código no válido",
+                text: "El enlace está incompleto o corrupto.",
+                icon: "error",
+                background: "#1a1a1a",
+                color: "#ffffff"
+            });
+            return false;
+        }
+
+        const ids = ordenAlbumIds();
+        if (decoded.albumBytes.length !== ids.length) {
+            Swal.fire({
+                title: "Álbum distinto",
+                text: "Este QR es de otra lista o versión de figuritas.",
+                icon: "warning",
+                background: "#1a1a1a",
+                color: "#ffffff"
+            });
+            return false;
+        }
+
+        if (typeof usuarioActual === "undefined" || !usuarioActual) {
+            sessionStorage.setItem("pendiente_album_qr", payload);
+            Swal.fire({
+                title: "Iniciá sesión",
+                text: "Para cruzar tu álbum con el del QR, entrá con tu cuenta.",
+                icon: "info",
+                background: "#1a1a1a",
+                color: "#ffffff"
+            });
+            return false;
+        }
+
+        if (!figuritas || figuritas.length !== ids.length) {
+            Swal.fire({
+                title: "Esperá un momento",
+                text: "Todavía se está cargando tu álbum. Volvé a tocar «Comparar» o recargá la página.",
+                icon: "info",
+                background: "#1a1a1a",
+                color: "#ffffff"
+            });
+            return false;
+        }
+
+        const miBytes = albumBytesFromFiguritas(figuritas);
+        const cruce = cruzarAlbumBytes(miBytes, decoded.albumBytes, ids);
+        mostrarResultadoCruce(decoded.displayName, cruce);
+
+        Swal.fire({
+            title: "Cruce listo",
+            html: `<p style="margin:0"><b>Vos le servís:</b> ${cruce.yoLeSirvo.length} · <b>Él te sirve:</b> ${cruce.elMeSirve.length}</p>`,
+            icon: "success",
+            toast: true,
+            position: "top-end",
+            timer: 4000,
+            showConfirmButton: false,
+            background: "#1a1a1a",
+            color: "#ffffff"
+        });
+        return true;
+    }
+
+    async function intentarCruceDesdeURL() {
+        const params = new URLSearchParams(window.location.search);
+        const sb = getSupabase();
+
+        let ref = params.get("ref");
+        if (!ref && sb && usuarioActual) {
+            ref = sessionStorage.getItem("pendiente_ref_qr");
+            if (ref) sessionStorage.removeItem("pendiente_ref_qr");
+        }
+        if (ref && sb) {
+            const code = ref.trim().toUpperCase();
+            const { data, error } = await sb.rpc("get_album_share", { p_code: code });
+            if (error) {
+                console.error(error);
+                return;
+            }
+            if (!data || !data.ok || !data.payload) {
+                Swal.fire({
+                    title: "Código inválido o vencido",
+                    text: "Pedile a tu amigo que regenere el QR desde la app.",
+                    icon: "warning",
+                    background: "#1a1a1a",
+                    color: "#ffffff"
+                });
+                return;
+            }
+            if (!usuarioActual) {
+                sessionStorage.setItem("pendiente_ref_qr", code);
+                sessionStorage.setItem("pendiente_album_qr", data.payload);
+                Swal.fire({
+                    title: "Iniciá sesión",
+                    text: "Después se arma el cruce con el álbum de tu amigo.",
+                    icon: "info",
+                    background: "#1a1a1a",
+                    color: "#ffffff"
+                });
+                return;
+            }
+            await ejecutarCruceConPayload(data.payload);
+            return;
+        }
+
+        let payload = params.get("album");
+        if (!payload && typeof usuarioActual !== "undefined" && usuarioActual) {
+            payload = sessionStorage.getItem("pendiente_album_qr");
+            if (payload) sessionStorage.removeItem("pendiente_album_qr");
+        }
+        if (!payload) return;
+        await ejecutarCruceConPayload(payload);
+    }
+
+    function extraerPayloadAlbumDeTexto(text) {
+        const t = String(text || "").trim();
+        if (!t) return null;
+        try {
+            const u = new URL(t);
+            const p = u.searchParams.get("album");
+            if (p) return p;
+        } catch (e) { /* no es URL absoluta */ }
+        let m = t.match(/[?&]album=([^&#]+)/i);
+        if (!m) m = t.match(/^album=([^&#]+)/i);
+        return m ? decodeURIComponent(m[1].trim()) : null;
+    }
+
+    async function resolverPayloadIntercambioDesdeTexto(val) {
+        const t = String(val || "").trim();
+        if (!t) return null;
+        const sb = getSupabase();
+        let code = null;
+        try {
+            const u = new URL(t);
+            const r = u.searchParams.get("ref");
+            if (r) code = r.trim().toUpperCase();
+        } catch (e) {
+            const m = t.match(/[?&]ref=([^&#\s]+)/i);
+            if (m) code = decodeURIComponent(m[1]).trim().toUpperCase();
+        }
+        if (!code && sb) {
+            const solo = t.replace(/^#/, "").replace(/\s/g, "");
+            if (/^[A-Z0-9]{6,14}$/i.test(solo)) code = solo.toUpperCase();
+        }
+        if (code && sb) {
+            const { data, error } = await sb.rpc("get_album_share", { p_code: code });
+            if (error || !data || !data.ok || !data.payload) return null;
+            return data.payload;
+        }
+        return extraerPayloadAlbumDeTexto(t);
     }
 
     function mostrar(seccion) {
@@ -373,96 +1562,15 @@ document.getElementById("busqueda").addEventListener("keydown", e => {
     if (e.key === "Enter") buscarPais();
 });
 
-    function render() {
-        const secciones = {
-            todas: document.getElementById("todas"),
-            tengo: document.getElementById("tengo"),
-            repetidas: document.getElementById("repetidas"),
-            faltan: document.getElementById("faltan")
-        };
-
-        Object.keys(secciones).forEach(sec => secciones[sec].innerHTML = `<h2>${sec.toUpperCase()}</h2>`);
-
-        const mapas = { todas: {}, tengo: {}, repetidas: {}, faltan: {} };
-        codigos.forEach(codigo => {
-            Object.keys(mapas).forEach(sec => mapas[sec][codigo] = crearBloquePais(codigo));
-        });
-
-        figuritas.forEach(fig => {
-            const box = document.createElement("div");
-            box.className = `figurita ${fig.estado === "tengo" ? "tengo" : ""}`;
-            box.innerHTML = `<span>${fig.id}</span>`;
-
-            // Si es verde, mostrar info de repetidas y botón quitar
-            if (fig.estado === "tengo") {
-                if (fig.cantidad > 0) {
-                    const badge = document.createElement("div");
-                    badge.className = "badge-rep";
-                    badge.textContent = `+${fig.cantidad}`;
-                    box.appendChild(badge);
-                }
-
-                const btnQuitar = document.createElement("button");
-                btnQuitar.className = "btn-quitar";
-                btnQuitar.textContent = "–";
-                btnQuitar.onclick = (e) => {
-                    e.stopPropagation(); // Evita que el click sume
-                    if (fig.cantidad > 0) {
-                        fig.cantidad--;
-                    } else {
-                        fig.estado = "faltan";
-                    }
-                    render();
-                };
-                box.appendChild(btnQuitar);
-            }
-
-            // Click principal: Lógica de suma
-            box.onclick = () => {
-                if (fig.estado === "faltan") {
-                    fig.estado = "tengo";
-                } else {
-                    fig.cantidad++;
-                }
-                render();
-            };
-
-            // Inyectar en sección TODAS
-            mapas.todas[fig.codigo].grid.appendChild(box);
-
-            // Inyectar en secciones específicas (clones visuales)
-            if (fig.estado === "tengo") {
-                mapas.tengo[fig.codigo].grid.appendChild(box.cloneNode(true));
-                if (fig.cantidad > 0) {
-                    const repClone = box.cloneNode(true);
-                    mapas.repetidas[fig.codigo].grid.appendChild(repClone);
-                }
-            } else {
-                mapas.faltan[fig.codigo].grid.appendChild(box.cloneNode(true));
-            }
-        });
-
-        // Re-asignar eventos a los clones (los clones pierden el onclick original)
-        // Por simplicidad en este ejemplo, inyectamos solo los bloques necesarios
-        Object.keys(mapas).forEach(sec => {
-            codigos.forEach(codigo => {
-                if (mapas[sec][codigo].grid.children.length > 0) {
-                    // Re-renderizamos para que los clicks funcionen en todas las vistas
-                    const bloque = mapas[sec][codigo].div;
-                    secciones[sec].appendChild(bloque);
-                }
-            });
-        });
-
-        actualizarProgreso();
-        localStorage.setItem("figuritas", JSON.stringify(figuritas));
+    let _refreshQrTimer;
+    function scheduleRefreshQR() {
+        if (typeof usuarioActual === "undefined" || !usuarioActual) return;
+        clearTimeout(_refreshQrTimer);
+        _refreshQrTimer = setTimeout(() => {
+            if (typeof renderizarMiQR === "function") void renderizarMiQR();
+        }, 700);
     }
 
-    // Nota: Para que los eventos funcionen en las vistas filtradas,
-    // el render debe ser consistente. He ajustado el render para usar 
-    // la lógica de inyección directa en lugar de clones para mantener eventos.
-    
-    // Función de render optimizada para mantener eventos:
     function renderMejorado() {
         const secciones = {
             todas: document.getElementById("todas"),
@@ -476,7 +1584,7 @@ document.getElementById("busqueda").addEventListener("keydown", e => {
         const listasPaises = { todas: {}, tengo: {}, repetidas: {}, faltan: {} };
 
         figuritas.forEach(fig => {
-            const crearFig = (isInteractive) => {
+            const crearFig = () => {
                 const box = document.createElement("div");
                 box.className = `figurita ${fig.estado === "tengo" ? "tengo" : ""}`;
                 box.innerHTML = `<span>${fig.id}</span>`;
@@ -533,6 +1641,11 @@ document.getElementById("busqueda").addEventListener("keydown", e => {
 
         actualizarProgreso();
         localStorage.setItem("figuritas", JSON.stringify(figuritas));
+        if (typeof usuarioActual !== "undefined" && usuarioActual) {
+            localStorage.setItem("figuritas_" + usuarioActual, JSON.stringify(figuritas));
+            scheduleRefreshQR();
+        }
+        if (getSupabase()) scheduleSaveCloud();
     }
 
     function actualizarProgreso() {
@@ -551,11 +1664,15 @@ document.getElementById("busqueda").addEventListener("keydown", e => {
         else document.getElementById("copa").classList.remove("completo");
     }
 
-    const guardado = localStorage.getItem("figuritas");
-    if (guardado) figuritas = JSON.parse(guardado);
-    else inicializar();
-
     async function generarPDF() {
+    if (!usuarioActual) {
+        return Swal.fire({
+            title: "Iniciá sesión",
+            text: "Necesitás una cuenta para generar el PDF de tu álbum.",
+            icon: "info",
+            ...swalBase
+        });
+    }
     const { value: tituloUsuario } = await Swal.fire({
         title: 'Escribi tu nombre',
         input: 'text',
@@ -574,35 +1691,48 @@ document.getElementById("busqueda").addEventListener("keydown", e => {
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
         
-        // --- 1. DATOS LIMPIOS ---
-        // Usamos una copia profunda para evitar conflictos de memoria en iOS
+        // --- 1. DATOS Y URL DE INTERCAMBIO ---
         const copiaFiguritas = JSON.parse(JSON.stringify(figuritas));
         const total = copiaFiguritas.length;
         const tengo = copiaFiguritas.filter(f => String(f.estado).toLowerCase() === "tengo").length;
         const faltanTotal = total - tengo;
         const porcentaje = ((tengo / total) * 100).toFixed(1);
 
+        const miLink = await obtenerMiUrlDeIntercambio();
+
         const listaCodigos = ["FWC","MEX","RSA","KOR","CZE","CAN","BIH","QAT","SUI","BRA","MAR","HAI","SCO","USA","PAR","AUS","TUR","GER","CUW","CIV","ECU","NED","JPN","SWE","TUN","BEL","EGY","IRN","NZL","ESP","CPV","KSA","URU","FRA","SEN","IRQ","NOR","ARG","ALG","AUT","JOR","POR","COD","UZB","COL","ENG","CRO","GHA","PAN"];
 
         let y = 20;
 
-        // --- 2. ENCABEZADO ---
+        // --- 2. ENCABEZADO Y QR ---
         doc.setFontSize(20);
         doc.setTextColor(255, 87, 34);
         doc.text(tituloUsuario.toUpperCase(), 105, y, { align: "center" });
+        
+        // INSERTAR QR (Si existe el link)
+        if (miLink) {
+            const qrImagenData = await generarImagenQR(miLink);
+            if (qrImagenData) {
+                doc.addImage(qrImagenData, "PNG", 160, 10, 35, 35);
+                doc.setFontSize(7);
+                doc.setTextColor(100);
+                doc.text("ESCANEAME PARA CAMBIAR", 160, 48);
+            }
+        }
+
         y += 15;
 
         doc.setFillColor(240, 240, 240);
-        doc.rect(15, y, 180, 25, 'F');
+        doc.rect(15, y, 140, 25, 'F'); // Achicamos un poco el recuadro para que no pise el QR
         doc.setFontSize(10);
         doc.setTextColor(40);
         doc.text(`Álbum de: ${tituloUsuario}`, 25, y + 10);
         doc.text(`Progreso: ${porcentaje}% (${tengo}/${total})`, 25, y + 18);
         doc.setTextColor(220, 20, 20);
-        doc.text(`FALTAN: ${faltanTotal}`, 140, y + 14);
+        doc.text(`FALTAN: ${faltanTotal}`, 100, y + 14);
         y += 35;
 
-        // --- 3. BUCLE DE FALTANTES (CON PROTECCIÓN ANTI-ERRORES) ---
+        // --- 3. BUCLE DE FALTANTES ---
         doc.setFontSize(14);
         doc.setTextColor(220, 20, 20);
         doc.text("DETALLE DE FALTANTES", 15, y);
@@ -627,10 +1757,7 @@ document.getElementById("busqueda").addEventListener("keydown", e => {
                         y += 6;
                     }
                 }
-            } catch (errPais) {
-                console.error("Error en país " + listaCodigos[i], errPais);
-                continue; // Si falla CZE, que siga con el resto
-            }
+            } catch (errPais) { continue; }
         }
 
         // --- 4. BUCLE DE REPETIDAS ---
@@ -660,34 +1787,60 @@ document.getElementById("busqueda").addEventListener("keydown", e => {
                         y += 6;
                     }
                 }
-            } catch (errRepe) {
-                continue;
-            }
+            } catch (errRepe) { continue; }
         }
 
-        // --- 5. GUARDADO ---
+        // --- 5. GUARDADO FINAL ---
+        const nombreArchivo = `Album_${tituloUsuario}.pdf`;
         if (/iPhone|iPad|iPod/.test(navigator.userAgent)) {
-    // Si es iPhone, creamos un archivo temporal y lo abrimos en pestaña nueva
-    const blob = doc.output('blob');
-    const url = URL.createObjectURL(blob);
-    window.open(url, '_blank'); 
-} else {
-    // Para Android o PC, la descarga clásica funciona bien
-    doc.save("Figuritas.pdf");
-}
+            const blob = doc.output('blob');
+            const url = URL.createObjectURL(blob);
+            window.open(url, '_blank'); 
+        } else {
+            doc.save(nombreArchivo);
+        }
 
     } catch (e) {
         alert("Error General: " + e.message);
     }
 }
-    renderMejorado();
-    mostrar("todas");
 
-    // 1. Configuración de la IA con Diccionario Global
-const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-recognition.lang = 'es-AR'; 
-recognition.continuous = true; 
-recognition.interimResults = false;
+    (async function initApp() {
+        aplicarSesionActivaUI(false);
+        initSupabaseAuthListener();
+        const sb = getSupabase();
+        let yaCargoSesion = false;
+        if (sb) {
+            const { data: { session } } = await sb.auth.getSession();
+            if (session && session.user) {
+                usuarioActual = (session.user.email || "").trim().toLowerCase();
+                cerrarLoginOverlay();
+                await cargarDatosUsuario();
+                yaCargoSesion = true;
+            }
+        }
+        if (!yaCargoSesion) {
+            inicializar();
+            aplicarSesionActivaUI(false);
+        }
+        setTimeout(() => {
+            if (typeof intentarCruceDesdeURL === "function") void intentarCruceDesdeURL();
+        }, 0);
+        if (location.protocol === "file:")
+            document.getElementById("aviso-file-protocol")?.classList.remove("hidden");
+    })();
+
+    let timerSeguridad;
+    const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const recognition = SpeechRec ? new SpeechRec() : null;
+    if (recognition) {
+        recognition.lang = "es-AR";
+        recognition.continuous = true;
+        recognition.interimResults = false;
+        recognition.onerror = () => {
+            clearTimeout(timerSeguridad);
+        };
+    }
 
 const diccionarioPaises = {
     "mundial": "FWC", "trofeo": "FWC", "méxico": "MEX", "mexico": "MEX", "sudáfrica": "RSA", 
@@ -705,25 +1858,32 @@ const diccionarioPaises = {
     "croacia": "CRO", "ghana": "GHA", "panamá": "PAN", "panama": "PAN"
 };
 
-let timerSeguridad;
-
 function activarVoz() {
+    if (!recognition) {
+        return Swal.fire({
+            title: "No disponible",
+            text: "Tu navegador no soporta reconocimiento de voz (probá Chrome en escritorio o Android).",
+            icon: "info",
+            background: "#1a1a1a",
+            color: "#ffffff"
+        });
+    }
     try {
         recognition.start();
         clearTimeout(timerSeguridad);
 
-        // CORTE DE SEGURIDAD 10 SEG
         timerSeguridad = setTimeout(() => {
             recognition.stop();
-            Swal.fire({ title: 'Micrófono apagado', icon: 'warning', toast: true, position: 'top-end', timer: 2000, showConfirmButton: false });
+            Swal.fire({ title: "Micrófono apagado", icon: "warning", toast: true, position: "top-end", timer: 2000, showConfirmButton: false });
         }, 10000);
 
-        Swal.fire({ title: 'Escuchando...', icon: 'info', showConfirmButton: false, timer: 1500, toast: true, position: 'top' });
-    } catch (e) { console.log("Micro ya activo"); }
+        Swal.fire({ title: "Escuchando...", icon: "info", showConfirmButton: false, timer: 1500, toast: true, position: "top" });
+    } catch (e) {
+        console.log("Micro ya activo o error:", e);
+    }
 }
 
-// 2. PROCESAMIENTO DE VOZ
-recognition.onresult = (event) => {
+if (recognition) recognition.onresult = (event) => {
     const vozOriginal = event.results[event.results.length - 1][0].transcript.toLowerCase();
     
     // Mostramos qué entendió
@@ -857,6 +2017,153 @@ function ejecutarCambioVoz(p1, n1, p2, n2) {
     }
 }
 
+/** Con Supabase: URL corta `?ref=CODIGO`. Sin Supabase: `?album=` comprimido. */
+async function obtenerMiUrlDeIntercambio() {
+    if (typeof usuarioActual === "undefined" || !usuarioActual) return null;
+    if (!figuritas || !figuritas.length) return null;
+    const sb = getSupabase();
+    if (sb) {
+        const { data: { user } } = await sb.auth.getUser();
+        if (!user) return null;
+        const code = await upsertAlbumSharePayload();
+        if (!code) return null;
+        try {
+            const u = new URL(window.location.href);
+            u.hash = "";
+            u.searchParams.delete("intercambio");
+            u.searchParams.delete("album");
+            u.searchParams.set("ref", code);
+            return u.toString();
+        } catch (e) {
+            console.error(e);
+            return null;
+        }
+    }
+    try {
+        const payload = await albumPayloadStringForUrl(figuritas, obtenerNombreParaAmigos());
+        const u = new URL(window.location.href);
+        u.hash = "";
+        u.searchParams.delete("intercambio");
+        u.searchParams.delete("ref");
+        u.searchParams.set("album", payload);
+        return u.toString();
+    } catch (e) {
+        console.error(e);
+        return null;
+    }
+}
+
+async function renderizarMiQR() {
+    const el = document.getElementById("qrcode");
+    const inp = document.getElementById("enlace-intercambio");
+    if (!el || typeof usuarioActual === "undefined" || !usuarioActual) {
+        if (inp) inp.value = "";
+        return;
+    }
+    el.innerHTML = "";
+    if (inp) inp.value = "Generando enlace…";
+    if (typeof QRCode === "undefined") {
+        if (inp) inp.placeholder = "No se cargó la librería del QR.";
+        return;
+    }
+    let url;
+    try {
+        url = await obtenerMiUrlDeIntercambio();
+    } catch (e) {
+        console.error(e);
+        if (inp) inp.value = "";
+        return;
+    }
+    if (!url) {
+        if (inp) inp.value = "";
+        return;
+    }
+    if (inp) inp.value = url;
+    const opts = { text: url, width: 300, height: 300 };
+    if (typeof QRCode.CorrectLevel !== "undefined") opts.correctLevel = QRCode.CorrectLevel.L;
+    try {
+        new QRCode(el, opts);
+    } catch (e) {
+        Swal.fire({
+            title: "No se pudo dibujar el QR",
+            text: "Usá «Copiar enlace» y mandá el enlace por WhatsApp.",
+            icon: "warning",
+            background: "#1a1a1a",
+            color: "#ffffff"
+        });
+    }
+}
+
+async function copiarEnlaceIntercambio() {
+    const inp = document.getElementById("enlace-intercambio");
+    const t = (inp && inp.value) ? inp.value.trim() : "";
+    if (!t || t === "Generando enlace…") {
+        return Swal.fire({
+            title: "Todavía no hay enlace",
+            text: "Iniciá sesión y esperá un segundo a que termine de generarse.",
+            icon: "info",
+            background: "#1a1a1a",
+            color: "#ffffff"
+        });
+    }
+    try {
+        await navigator.clipboard.writeText(t);
+        Swal.fire({ title: "Copiado", icon: "success", toast: true, timer: 1600, showConfirmButton: false, position: "top-end" });
+    } catch (err) {
+        try {
+            inp.select();
+            document.execCommand("copy");
+            Swal.fire({ title: "Copiado", icon: "success", toast: true, timer: 1600, showConfirmButton: false, position: "top-end" });
+        } catch (e2) {
+            Swal.fire({ title: "No se pudo copiar", text: "Seleccioná el texto del cuadro y copiálo a mano (Ctrl+C).", icon: "info", background: "#1a1a1a", color: "#ffffff" });
+        }
+    }
+}
+
+async function procesarIntercambioManual() {
+    const raw = document.getElementById("codigo-input");
+    const val = (raw && raw.value ? raw.value : "").trim();
+    if (!val) {
+        return Swal.fire({
+            title: "Aviso",
+            text: "Pegá el enlace o el código de intercambio que te pasó tu amigo.",
+            icon: "info",
+            background: "#1a1a1a",
+            color: "#ffffff"
+        });
+    }
+    const payload = await resolverPayloadIntercambioDesdeTexto(val);
+    if (!payload) {
+        return Swal.fire({
+            title: "No encontré el álbum",
+            text: getSupabase()
+                ? "Tiene que ser un enlace con ref=… o el código de 10 letras, o un enlace con album=…"
+                : "El texto tiene que incluir album=… (enlace de intercambio).",
+            icon: "warning",
+            background: "#1a1a1a",
+            color: "#ffffff"
+        });
+    }
+    await ejecutarCruceConPayload(payload);
+}
+
+async function generarImagenQR(linkIntercambio) {
+    if (!linkIntercambio || typeof QRCode === "undefined") return null;
+    const divTemporal = document.createElement("div");
+    const pdfQrOpts = { text: linkIntercambio, width: 256, height: 256 };
+    if (typeof QRCode.CorrectLevel !== "undefined") pdfQrOpts.correctLevel = QRCode.CorrectLevel.L;
+    try {
+        new QRCode(divTemporal, pdfQrOpts);
+    } catch (e) {
+        return null;
+    }
+    return new Promise((resolve) => {
+        setTimeout(() => {
+            const canvas = divTemporal.querySelector("canvas");
+            resolve(canvas ? canvas.toDataURL("image/png") : null);
+        }, 120);
+    });
+}
 </script>
 
 </body>
