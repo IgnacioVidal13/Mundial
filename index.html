@@ -1083,6 +1083,37 @@
         }
     }
 
+    function toastRefrescarTrasEscaneo() {
+        Swal.fire({
+            title: "Escaneo completado",
+            text: "Refrescá la página para ver el amigo agregado en Amigos.",
+            icon: "info",
+            toast: true,
+            position: "top-end",
+            timer: 2600,
+            showConfirmButton: false,
+            background: "#1a1a1a",
+            color: "#ffffff"
+        });
+    }
+
+    function toastFooterAyuda() {
+        const clave = "toast_footer_ayuda_visto";
+        if (sessionStorage.getItem(clave) === "1") return;
+        sessionStorage.setItem(clave, "1");
+        Swal.fire({
+            title: "Ayuda y contacto",
+            text: "Abajo de todo tenés instrucciones de uso y el botón para contactarte.",
+            icon: "info",
+            toast: true,
+            position: "top-end",
+            timer: 3200,
+            showConfirmButton: false,
+            background: "#1a1a1a",
+            color: "#ffffff"
+        });
+    }
+
     function aplicarSesionActivaUI(activa) {
         activa = !!activa;
         const vistaBienvenida = document.getElementById("vista-bienvenida");
@@ -2421,7 +2452,8 @@
                 });
                 return;
             }
-            await asegurarAmistadMutuaPorCodigo(code, sb);
+            const amistadMutua = await asegurarAmistadMutuaPorCodigo(code, sb);
+            if (amistadMutua) toastRefrescarTrasEscaneo();
             await ejecutarCruceConPayload(data.payload);
             return;
         }
@@ -2865,6 +2897,7 @@ document.getElementById("amigo-codigo-input")?.addEventListener("keydown", e => 
             mostrar("todas");
             aplicarSesionActivaUI(false);
         }
+        toastFooterAyuda();
         if (!habiaSesionInicial) {
             setTimeout(() => {
                 if (typeof intentarCruceDesdeURL === "function") void intentarCruceDesdeURL();
