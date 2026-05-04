@@ -209,16 +209,6 @@
             letter-spacing: 0;
             word-break: break-all;
         }
-        #enlace-intercambio {
-            width: 100%;
-            box-sizing: border-box;
-            padding: 8px 10px;
-            font-size: 11px;
-            border-radius: 6px;
-            border: 1px solid #888;
-            font-family: Consolas, monospace;
-            word-break: break-all;
-        }
         #enlace-intercambio-wrap .btn-copiar {
             margin-top: 8px;
             padding: 10px 16px;
@@ -488,8 +478,6 @@
             <span class="codigo-label">Código de intercambio</span>
             <strong id="mi-codigo-texto"></strong>
         </div>
-        <label for="enlace-intercambio">Código de intercambio</label>
-        <input type="text" id="enlace-intercambio" readonly aria-label="Código de intercambio">
         <button type="button" class="btn-copiar" onclick="copiarEnlaceIntercambio()">Copiar código</button>
     </div>
 
@@ -663,14 +651,20 @@
         const btnOut = document.getElementById("btn-salir-nav");
         const chip = document.getElementById("chip-email");
         const ov = document.getElementById("login-overlay");
-        if (vistaBienvenida) vistaBienvenida.classList.toggle("hidden", activa);
-        if (albumContenido) albumContenido.classList.toggle("hidden", !activa);
-        if (nav) nav.classList.toggle("hidden", !activa);
+        if (vistaBienvenida) vistaBienvenida.classList.toggle("hidden", true);
+        if (albumContenido) albumContenido.classList.toggle("hidden", false);
+        if (nav) nav.classList.toggle("hidden", false);
         if (btnIn) btnIn.classList.toggle("hidden", activa);
         if (btnOut) btnOut.classList.toggle("hidden", !activa);
         if (chip) chip.classList.toggle("hidden", !activa);
         if (activa && usuarioActual) actualizarTextoChipUsuario();
         if (ov) ov.style.display = "none";
+    }
+
+    function requiereSesionParaEditar() {
+        if (usuarioActual) return true;
+        abrirLogin();
+        return false;
     }
 
     function abrirLogin() {
@@ -704,6 +698,19 @@
         if (m.includes("rate limit") || m.includes("too many requests"))
             return { title: "Demasiados intentos", text: "Esperá un minuto y volvé a probar.", icon: "warning" };
         return { title: "No se pudo completar", text: raw, icon: "error" };
+    }
+
+    function mensajeRecuperacionPasswordError(error) {
+        const raw = (error && error.message) ? String(error.message) : "Error desconocido";
+        const m = raw.toLowerCase();
+        if (m.includes("rate limit") || m.includes("too many requests")) {
+            return {
+                title: "Envio temporalmente bloqueado",
+                text: "Supabase esta limitando los correos de recuperacion para este proyecto. No depende del mail que escribas. Espera un minuto y volve a probar.",
+                icon: "warning"
+            };
+        }
+        return mensajeAuthError(error);
     }
 
     function toggleAuth() {
@@ -892,7 +899,9 @@
         });
     }
 
+    let _recuperarPasswordEnCurso = false;
     async function recuperarPassword() {
+        if (_recuperarPasswordEnCurso) return;
         const sb = getSupabase();
         if (!sb) {
             return Swal.fire({
@@ -918,10 +927,15 @@
         });
         if (!emailIn) return;
         const redirectTo = window.location.href.split("#")[0].split("?")[0];
-        const { error } = await sb.auth.resetPasswordForEmail(String(emailIn).trim().toLowerCase(), { redirectTo });
-        if (error) {
-            const x = mensajeAuthError(error);
-            return Swal.fire({ ...x, ...swalBase });
+        _recuperarPasswordEnCurso = true;
+        try {
+            const { error } = await sb.auth.resetPasswordForEmail(String(emailIn).trim().toLowerCase(), { redirectTo });
+            if (error) {
+                const x = mensajeRecuperacionPasswordError(error);
+                return Swal.fire({ ...x, ...swalBase });
+            }
+        } finally {
+            _recuperarPasswordEnCurso = false;
         }
         await Swal.fire({
             title: "Listo",
@@ -977,6 +991,64 @@
             ...swalBase
         });
         _recoveryPwdUiAbierta = false;
+        return true;
+    }
+
+    function obtenerParametroAuthUrl(nombre) {
+        const params = new URLSearchParams(window.location.search);
+        if (params.has(nombre)) return params.get(nombre);
+        const hash = window.location.hash ? window.location.hash.replace(/^#/, "") : "";
+        const hashParams = new URLSearchParams(hash);
+        return hashParams.get(nombre);
+    }
+
+    function urlEsRecoveryPassword() {
+        return obtenerParametroAuthUrl("type") === "recovery" || obtenerParametroAuthUrl("type") === "password_recovery";
+    }
+
+    function limpiarParametrosRecoveryUrl() {
+        try {
+            const u = new URL(window.location.href);
+            ["code", "type", "access_token", "refresh_token", "expires_in", "expires_at", "token_type"].forEach(p => u.searchParams.delete(p));
+            u.hash = "";
+            window.history.replaceState({}, document.title, u.toString());
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    async function procesarRecoveryDesdeUrl(sb = getSupabase()) {
+        if (!sb || !urlEsRecoveryPassword()) return false;
+        const code = obtenerParametroAuthUrl("code");
+        try {
+            if (code && typeof sb.auth.exchangeCodeForSession === "function") {
+                const { error } = await sb.auth.exchangeCodeForSession(code);
+                if (error) {
+                    const x = mensajeAuthError(error);
+                    await Swal.fire({ ...x, ...swalBase });
+                    return true;
+                }
+            }
+            const actualizada = await pedirNuevaPasswordTrasRecovery(sb);
+            limpiarParametrosRecoveryUrl();
+            if (actualizada) {
+                const { data } = await sb.auth.getUser();
+                if (data && data.user) await aplicarSesionSupabase(sb, data.user);
+            } else {
+                inicializar();
+                aplicarSesionActivaUI(false);
+            }
+            return true;
+        } catch (error) {
+            console.error("procesarRecoveryDesdeUrl:", error);
+            await Swal.fire({
+                title: "No se pudo restablecer",
+                text: error && error.message ? error.message : String(error),
+                icon: "error",
+                ...swalBase
+            });
+            return true;
+        }
     }
 
     async function guardarProgresoSupabase() {
@@ -1028,7 +1100,12 @@
     async function cargarDatosUsuario(sb = getSupabase(), userActual = null) {
         if (sb) {
             const user = userActual || supabaseUserActual || (await sb.auth.getUser()).data.user;
-            if (!user) return;
+            if (!user) {
+                inicializar();
+                renderMejorado();
+                mostrar("todas");
+                return;
+            }
             supabaseUserActual = user;
             usuarioActual = (user.email || "").trim().toLowerCase();
 
@@ -1138,8 +1215,9 @@
         supabaseUserActual = null;
         cerrarLoginOverlay();
         inicializar();
-        aplicarSesionActivaUI(false);
         renderMejorado();
+        mostrar("todas");
+        aplicarSesionActivaUI(false);
     }
 
     function logAuthStateChangeError(event, session, error) {
@@ -1157,6 +1235,7 @@
         try {
             if (event === "PASSWORD_RECOVERY") {
                 await pedirNuevaPasswordTrasRecovery(sb);
+                return;
             }
             if (event === "TOKEN_REFRESHED" && session && session.user) {
                 supabaseUserActual = session.user;
@@ -1661,6 +1740,7 @@ document.getElementById("busqueda").addEventListener("keydown", e => {
                     bq.textContent = "–";
                     bq.onclick = (e) => {
                         e.stopPropagation();
+                        if (!requiereSesionParaEditar()) return;
                         if (fig.cantidad > 0) fig.cantidad--;
                         else fig.estado = "faltan";
                         renderMejorado();
@@ -1669,6 +1749,7 @@ document.getElementById("busqueda").addEventListener("keydown", e => {
                 }
 
                 box.onclick = () => {
+                    if (!requiereSesionParaEditar()) return;
                     if (fig.estado === "faltan") fig.estado = "tengo";
                     else fig.cantidad++;
                     renderMejorado();
@@ -1700,12 +1781,11 @@ document.getElementById("busqueda").addEventListener("keydown", e => {
         });
 
         actualizarProgreso();
-        localStorage.setItem("figuritas", JSON.stringify(figuritas));
         if (typeof usuarioActual !== "undefined" && usuarioActual) {
             localStorage.setItem("figuritas_" + usuarioActual, JSON.stringify(figuritas));
             scheduleRefreshQR();
+            if (getSupabase()) scheduleSaveCloud();
         }
-        if (getSupabase()) scheduleSaveCloud();
     }
 
     function actualizarProgreso() {
@@ -1725,14 +1805,7 @@ document.getElementById("busqueda").addEventListener("keydown", e => {
     }
 
     async function generarPDF() {
-    if (!usuarioActual) {
-        return Swal.fire({
-            title: "Iniciá sesión",
-            text: "Necesitás una cuenta para generar el PDF de tu álbum.",
-            icon: "info",
-            ...swalBase
-        });
-    }
+    if (!requiereSesionParaEditar()) return;
     const { value: tituloUsuario } = await Swal.fire({
         title: 'Escribi tu nombre',
         input: 'text',
@@ -1871,20 +1944,28 @@ document.getElementById("busqueda").addEventListener("keydown", e => {
         if (sb) {
             initSupabaseAuthListener(sb);
             try {
+                const recoveryProcesado = await procesarRecoveryDesdeUrl(sb);
+                if (recoveryProcesado) return;
                 const { data: { session } } = await sb.auth.getSession();
                 if (session && session.user) {
                     await aplicarSesionSupabase(sb, session.user);
                 } else {
                     inicializar();
+                    renderMejorado();
+                    mostrar("todas");
                     aplicarSesionActivaUI(false);
                 }
             } catch (error) {
                 console.error("initApp getSession:", error);
                 inicializar();
+                renderMejorado();
+                mostrar("todas");
                 aplicarSesionActivaUI(false);
             }
         } else {
             inicializar();
+            renderMejorado();
+            mostrar("todas");
             aplicarSesionActivaUI(false);
         }
         setTimeout(() => {
@@ -1923,6 +2004,7 @@ const diccionarioPaises = {
 };
 
 function activarVoz() {
+    if (!requiereSesionParaEditar()) return;
     if (!recognition) {
         return Swal.fire({
             title: "No disponible",
@@ -2037,6 +2119,7 @@ function extraerDatosPro(texto) {
 
 // ESTA FUNCIÓN TAMBIÉN CAMBIA PARA SER MÁS FLEXIBLE
 function ejecutarCambioVoz(p1, n1, p2, n2) {
+    if (!requiereSesionParaEditar()) return;
     const pais1 = p1.toUpperCase().trim();
     const pais2 = p2.toUpperCase().trim();
 
@@ -2124,18 +2207,15 @@ function limpiarQrGenerado(el) {
 
 async function renderizarMiQR(sb = getSupabase(), userActual = null) {
     const el = document.getElementById("qrcode");
-    const inp = document.getElementById("enlace-intercambio");
     const codigoDisplay = document.getElementById("mi-codigo-display");
     const codigoTexto = document.getElementById("mi-codigo-texto");
     if (!el || typeof usuarioActual === "undefined" || !usuarioActual) {
         limpiarQrGenerado(el);
-        if (inp) inp.value = "";
         if (codigoDisplay) codigoDisplay.classList.add("hidden");
         if (codigoTexto) codigoTexto.textContent = "";
         return;
     }
     limpiarQrGenerado(el);
-    if (inp) inp.value = "Generando enlace…";
     if (codigoDisplay) codigoDisplay.classList.add("hidden");
     if (codigoTexto) codigoTexto.textContent = "";
     let url;
@@ -2143,11 +2223,9 @@ async function renderizarMiQR(sb = getSupabase(), userActual = null) {
         url = await obtenerMiUrlDeIntercambio(sb, userActual);
     } catch (e) {
         console.error(e);
-        if (inp) inp.value = "";
         return;
     }
     if (!url) {
-        if (inp) inp.value = "";
         return;
     }
     let code = "";
@@ -2162,9 +2240,7 @@ async function renderizarMiQR(sb = getSupabase(), userActual = null) {
     }
     const valorCompartir = code || url;
     const valorQr = code ? url : valorCompartir;
-    if (inp) inp.value = valorCompartir;
     if (typeof QRCode === "undefined") {
-        if (inp) inp.title = "No se cargo la libreria del QR, pero podes copiar este codigo.";
         return;
     }
     const opts = { text: valorQr, width: 300, height: 300 };
@@ -2187,8 +2263,9 @@ async function generarInterfazCompartir(sb = getSupabase(), userActual = null) {
 }
 
 async function copiarEnlaceIntercambio() {
-    const inp = document.getElementById("enlace-intercambio");
-    const t = (inp && inp.value) ? inp.value.trim() : "";
+    if (!requiereSesionParaEditar()) return;
+    const codigoTexto = document.getElementById("mi-codigo-texto");
+    const t = (codigoTexto && codigoTexto.textContent ? codigoTexto.textContent : "").trim();
     if (!t || t === "Generando enlace…") {
         return Swal.fire({
             title: "Todavia no hay codigo",
@@ -2203,16 +2280,24 @@ async function copiarEnlaceIntercambio() {
         Swal.fire({ title: "Copiado", icon: "success", toast: true, timer: 1600, showConfirmButton: false, position: "top-end" });
     } catch (err) {
         try {
-            inp.select();
+            const fallback = document.createElement("input");
+            fallback.value = t;
+            fallback.setAttribute("readonly", "");
+            fallback.style.position = "fixed";
+            fallback.style.left = "-9999px";
+            document.body.appendChild(fallback);
+            fallback.select();
             document.execCommand("copy");
+            fallback.remove();
             Swal.fire({ title: "Copiado", icon: "success", toast: true, timer: 1600, showConfirmButton: false, position: "top-end" });
         } catch (e2) {
-            Swal.fire({ title: "No se pudo copiar", text: "Seleccioná el texto del cuadro y copiálo a mano (Ctrl+C).", icon: "info", background: "#1a1a1a", color: "#ffffff" });
+            Swal.fire({ title: "No se pudo copiar", text: "Selecciona el codigo visible y copialo a mano.", icon: "info", background: "#1a1a1a", color: "#ffffff" });
         }
     }
 }
 
 async function procesarIntercambioManual() {
+    if (!requiereSesionParaEditar()) return;
     const raw = document.getElementById("codigo-input");
     const val = (raw && raw.value ? raw.value : "").trim();
     if (!val) {
