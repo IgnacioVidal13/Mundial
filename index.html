@@ -38,6 +38,13 @@
             cursor: pointer;
             font-weight: bold;
         }
+        button:active {
+            transform: translateY(1px);
+        }
+        .btn-clicked {
+            outline: 2px solid rgba(255,215,0,0.85);
+            outline-offset: 1px;
+        }
 
         .todas { background: #2196F3; color: white; }
         .tengo { background: #4CAF50; color: white; }
@@ -375,6 +382,60 @@
             line-height: 1.45;
             box-shadow: 0 10px 24px rgba(0,0,0,0.35);
         }
+        .site-footer {
+            max-width: 980px;
+            margin: 24px auto 0;
+            padding: 18px 16px 30px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            border-top: 1px solid rgba(255,215,0,0.35);
+            background: #000;
+            border-radius: 10px 10px 0 0;
+            color: #f1f1f1;
+        }
+        .site-footer small {
+            color: rgba(255,255,255,0.72);
+        }
+        .footer-actions {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+        .btn-contacto,
+        .btn-instrucciones {
+            background: #1f7ae0;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            padding: 10px 14px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .btn-instrucciones {
+            background: #ffd700;
+            color: #111;
+        }
+        .instrucciones-uso {
+            text-align: left;
+            color: #f4f4f4;
+            font-size: 15px;
+            line-height: 1.45;
+        }
+        .instrucciones-uso h3 {
+            margin: 16px 0 8px;
+            color: #ffd700;
+            font-size: 18px;
+        }
+        .instrucciones-uso ul {
+            margin: 0 0 8px;
+            padding-left: 20px;
+        }
+        .instrucciones-uso li {
+            margin: 5px 0;
+        }
         .amigo-detalle-head {
             display: flex;
             align-items: center;
@@ -673,6 +734,17 @@
         <div id="amigos-lista"></div>
         <div id="amigo-detalle" class="amigo-detalle hidden"></div>
     </section>
+    <footer class="site-footer">
+        <div>
+            <strong>Contacto</strong><br>
+            <small>Escribí un mensaje y se enviará automáticamente a soporte.</small>
+            <small>© 2026 Mi Lista Mundialista™ · All rights reserved.</small>
+        </div>
+        <div class="footer-actions">
+            <button type="button" class="btn-instrucciones" onclick="abrirInstruccionesUso()">Instrucciones de uso</button>
+            <button type="button" class="btn-contacto" onclick="abrirContacto()">Contactar</button>
+        </div>
+    </footer>
     </div>
 </main>
 
@@ -695,6 +767,27 @@
     const swalBase = { background: "#1a1a1a", color: "#ffffff", confirmButtonColor: "#2196F3" };
 
     let sbClient = null;
+    function marcarClickBoton(btn) {
+        if (!btn) return;
+        btn.classList.add("btn-clicked");
+        clearTimeout(btn._clickFlashTimer);
+        btn._clickFlashTimer = setTimeout(() => btn.classList.remove("btn-clicked"), 180);
+    }
+
+    function instalarFeedbackClicks() {
+        if (document.body && document.body.dataset.clickFeedbackInstalado === "1") return;
+        if (document.body) document.body.dataset.clickFeedbackInstalado = "1";
+        document.addEventListener("pointerdown", (e) => {
+            const btn = e.target && e.target.closest ? e.target.closest("button") : null;
+            if (btn) marcarClickBoton(btn);
+        }, true);
+        document.addEventListener("keydown", (e) => {
+            if (e.key !== "Enter" && e.key !== " ") return;
+            const btn = e.target && e.target.closest ? e.target.closest("button") : null;
+            if (btn) marcarClickBoton(btn);
+        }, true);
+    }
+
     function getSupabase() {
         if (sbClient) return sbClient;
         const supabaseLib = window.supabase;
@@ -741,6 +834,137 @@
         if (!/[0-9]/.test(pw)) return "Falta al menos un número.";
         if (!/[^A-Za-zÁÉÍÓÚÑÜáéíóúñü0-9]/.test(pw)) return "Falta al menos un símbolo (ej.: ! @ # ? %).";
         return null;
+    }
+
+    async function enviarContactoSoporte({ email, mensaje }) {
+        const sb = getSupabase();
+        if (!sb) {
+            throw new Error("Supabase no está disponible.");
+        }
+        const url = `${SUPABASE_URL.replace(/\/$/, "")}/functions/v1/contact-support`;
+        const res = await fetch(url, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                email,
+                mensaje,
+                usuario: usuarioActual || "",
+                nombre: obtenerNombreParaAmigos()
+            })
+        });
+        let data = null;
+        try {
+            data = await res.json();
+        } catch (e) {
+            data = null;
+        }
+        if (!res.ok || !data || data.ok !== true) {
+            throw new Error((data && data.error) || "No se pudo enviar el mensaje.");
+        }
+        return data;
+    }
+
+    function abrirInstruccionesUso() {
+        Swal.fire({
+            title: "Instrucciones de uso",
+            html: `
+                <div class="instrucciones-uso">
+                    <h3>1. Entrar a tu álbum</h3>
+                    <ul>
+                        <li>Usá <strong>Iniciar sesión</strong> para entrar o crear una cuenta nueva.</li>
+                        <li>Al registrarte, elegí un <strong>nombre público</strong>: tus amigos lo ven al comparar álbumes.</li>
+                        <li>Si olvidaste la contraseña, usá el enlace de recuperación del formulario de inicio.</li>
+                    </ul>
+
+                    <h3>2. Cargar figuritas</h3>
+                    <ul>
+                        <li>Tocá una figurita para marcarla como <strong>pegada</strong>.</li>
+                        <li>Si tocás una figurita que ya tenés, suma una <strong>repetida</strong>.</li>
+                        <li>Usá el botón pequeño de cada figurita para restar repetidas o volverla a faltante.</li>
+                        <li>La barra superior muestra tu progreso total del álbum.</li>
+                    </ul>
+
+                    <h3>3. Ver y buscar</h3>
+                    <ul>
+                        <li>Usá las pestañas <strong>Todas</strong>, <strong>Pegadas</strong>, <strong>Repetidas</strong> y <strong>Faltan</strong> para filtrar.</li>
+                        <li>Buscá por código de país, por ejemplo <strong>ARG</strong>, <strong>BRA</strong> o <strong>FWC</strong>.</li>
+                        <li>El micrófono permite cargar cambios por voz cuando el navegador lo permite.</li>
+                    </ul>
+
+                    <h3>4. Intercambiar</h3>
+                    <ul>
+                        <li>Tu sección de intercambio genera un <strong>código</strong>, un enlace y un QR.</li>
+                        <li>Compartí ese código, enlace o QR para que otra persona compare con tu álbum.</li>
+                        <li>Pegá el código de un amigo en el buscador de intercambio y presioná <strong>Comparar</strong>.</li>
+                        <li>El panel te muestra qué repetidas tuyas le sirven y cuáles de tu amigo te sirven a vos.</li>
+                    </ul>
+
+                    <h3>5. Amigos, PDF y soporte</h3>
+                    <ul>
+                        <li>En <strong>Amigos</strong> podés agregar personas por código, ver su progreso y comparar álbumes.</li>
+                        <li><strong>Descargar PDF</strong> genera un resumen imprimible de tu álbum.</li>
+                        <li><strong>Contactar</strong> abre el formulario para enviar un mensaje a soporte.</li>
+                    </ul>
+                </div>
+            `,
+            width: 760,
+            confirmButtonText: "Entendido",
+            ...swalBase
+        });
+    }
+
+    async function abrirContacto() {
+        const { value, isConfirmed } = await Swal.fire({
+            title: "Contactar soporte",
+            html:
+                '<input id="contacto-email" type="email" class="swal2-input" placeholder="Tu correo">' +
+                '<textarea id="contacto-mensaje" class="swal2-textarea" placeholder="Escribí tu mensaje"></textarea>',
+            focusConfirm: false,
+            showCancelButton: true,
+            confirmButtonText: "Enviar",
+            cancelButtonText: "Cancelar",
+            preConfirm: () => {
+                const email = document.getElementById("contacto-email")?.value.trim() || "";
+                const mensaje = document.getElementById("contacto-mensaje")?.value.trim() || "";
+                if (!email || !email.includes("@")) {
+                    Swal.showValidationMessage("Escribí un correo válido.");
+                    return false;
+                }
+                if (!mensaje) {
+                    Swal.showValidationMessage("Escribí un mensaje.");
+                    return false;
+                }
+                return { email, mensaje };
+            },
+            ...swalBase
+        });
+        if (!isConfirmed || !value) return;
+        try {
+            Swal.fire({
+                title: "Enviando...",
+                allowOutsideClick: false,
+                didOpen: () => Swal.showLoading(),
+                showConfirmButton: false,
+                ...swalBase
+            });
+            await enviarContactoSoporte(value);
+            Swal.close();
+            Swal.fire({
+                title: "Mensaje enviado",
+                text: "Te respondo a la casilla que escribiste.",
+                icon: "success",
+                ...swalBase
+            });
+        } catch (error) {
+            Swal.fire({
+                title: "No se pudo enviar",
+                text: error.message || "Revisá el formulario y volvé a intentar.",
+                icon: "error",
+                ...swalBase
+            });
+        }
     }
 
     function nombreUsuarioLocalDisponible(norm) {
@@ -2508,10 +2732,18 @@ document.getElementById("amigo-codigo-input")?.addEventListener("keydown", e => 
 
         // --- 5. GUARDADO FINAL ---
         const nombreArchivo = `Album_${tituloUsuario}.pdf`;
-        if (/iPhone|iPad|iPod/.test(navigator.userAgent)) {
-            const blob = doc.output('blob');
+        const esMovil = /Android|iPhone|iPad|iPod|IEMobile|Opera Mini/i.test(navigator.userAgent) || (navigator.maxTouchPoints || 0) > 1;
+        if (esMovil) {
+            const blob = doc.output("blob");
             const url = URL.createObjectURL(blob);
-            window.open(url, '_blank');
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = nombreArchivo;
+            a.rel = "noopener";
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 2000);
         } else {
             doc.save(nombreArchivo);
         }
@@ -2520,6 +2752,8 @@ document.getElementById("amigo-codigo-input")?.addEventListener("keydown", e => 
         alert("Error General: " + e.message);
     }
 }
+
+    instalarFeedbackClicks();
 
     (async function initApp() {
         aplicarSesionActivaUI(false);
