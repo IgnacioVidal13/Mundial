@@ -368,3 +368,133 @@ $$;
 
 revoke all on function public.get_album_share(text) from public;
 grant execute on function public.get_album_share(text) to anon, authenticated;
+
+-- Amigos guardados: relacion unidireccional. Quien conoce tu codigo puede agregarte.
+create table if not exists public.album_amigos (
+  owner_id uuid not null references auth.users (id) on delete cascade,
+  friend_id uuid not null references auth.users (id) on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (owner_id, friend_id),
+  check (owner_id <> friend_id)
+);
+
+alter table public.album_amigos enable row level security;
+alter table public.album_amigos force row level security;
+
+drop policy if exists "album_amigos_select_own" on public.album_amigos;
+create policy "album_amigos_select_own"
+  on public.album_amigos for select
+  to authenticated
+  using (auth.uid() = owner_id);
+
+drop policy if exists "album_amigos_insert_own" on public.album_amigos;
+create policy "album_amigos_insert_own"
+  on public.album_amigos for insert
+  to authenticated
+  with check (auth.uid() = owner_id);
+
+drop policy if exists "album_amigos_update_own" on public.album_amigos;
+drop policy if exists "album_amigos_delete_own" on public.album_amigos;
+create policy "album_amigos_delete_own"
+  on public.album_amigos for delete
+  to authenticated
+  using (auth.uid() = owner_id);
+
+revoke all on public.album_amigos from anon, authenticated;
+grant select, insert, delete on public.album_amigos to authenticated;
+
+create or replace function public.add_friend_by_code(p_code text)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_uid uuid := auth.uid();
+  v_friend uuid;
+  v_username text;
+  v_code text := upper(trim(coalesce(p_code, '')));
+begin
+  if v_uid is null then
+    raise exception 'not_authenticated' using errcode = '28000';
+  end if;
+
+  if v_code !~ '^[A-Z0-9]{6,14}$' then
+    return jsonb_build_object('ok', false, 'reason', 'invalid_code');
+  end if;
+
+  select owner_id into v_friend
+  from public.album_intercambios
+  where code = v_code
+    and expires_at > now()
+  limit 1;
+
+  if not found then
+    return jsonb_build_object('ok', false, 'reason', 'not_found');
+  end if;
+
+  if v_friend = v_uid then
+    return jsonb_build_object('ok', false, 'reason', 'self');
+  end if;
+
+  insert into public.album_amigos (owner_id, friend_id)
+  values (v_uid, v_friend)
+  on conflict (owner_id, friend_id) do nothing;
+
+  select username into v_username
+  from public.profiles
+  where id = v_friend;
+
+  return jsonb_build_object(
+    'ok', true,
+    'friend_id', v_friend,
+    'username', coalesce(v_username, 'Amigo')
+  );
+end;
+$$;
+
+revoke all on function public.add_friend_by_code(text) from public;
+grant execute on function public.add_friend_by_code(text) to authenticated;
+
+create or replace function public.list_friend_albums()
+returns jsonb
+language sql
+security definer
+set search_path = public
+as $$
+  select coalesce(jsonb_agg(
+    jsonb_build_object(
+      'friend_id', a.friend_id,
+      'username', coalesce(p.username, 'Amigo'),
+      'code', i.code,
+      'payload', i.payload,
+      'updated_at', i.updated_at,
+      'expires_at', i.expires_at
+    )
+    order by coalesce(p.username, 'Amigo')
+  ), '[]'::jsonb)
+  from public.album_amigos a
+  left join public.profiles p on p.id = a.friend_id
+  left join public.album_intercambios i
+    on i.owner_id = a.friend_id
+   and i.expires_at > now()
+  where a.owner_id = auth.uid();
+$$;
+
+revoke all on function public.list_friend_albums() from public;
+grant execute on function public.list_friend_albums() to authenticated;
+
+create or replace function public.remove_friend(p_friend_id uuid)
+returns boolean
+language sql
+security definer
+set search_path = public
+as $$
+  delete from public.album_amigos
+  where owner_id = auth.uid()
+    and friend_id = p_friend_id
+  returning true;
+$$;
+
+revoke all on function public.remove_friend(uuid) from public;
+grant execute on function public.remove_friend(uuid) to authenticated;

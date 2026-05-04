@@ -266,6 +266,7 @@
             font-size: 15px;
             font-weight: bold;
             color: #ffd700;
+            white-space: pre-wrap;
         }
         #panel-cruce-intercambio .btn-cerrar-cruce {
             margin-top: 14px;
@@ -276,6 +277,80 @@
             font-weight: bold;
             background: #444;
             color: #fff;
+        }
+
+        #amigos {
+            max-width: 980px;
+            margin: 20px auto;
+            color: #f0f0f0;
+        }
+        .amigos-toolbar {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+        .amigos-toolbar input {
+            min-width: 220px;
+            padding: 10px;
+            border: 1px solid #666;
+            border-radius: 6px;
+            background: #f7f7f7;
+            color: #111;
+            font-family: Consolas, monospace;
+            text-transform: uppercase;
+        }
+        .amigos-toolbar button,
+        .amigo-card button,
+        .amigo-detalle button {
+            padding: 9px 12px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .amigos-toolbar button { background: #2196F3; color: #fff; }
+        #amigos-lista {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 12px;
+        }
+        .amigo-card {
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.14);
+            border-radius: 8px;
+            padding: 14px;
+        }
+        .amigo-card h3 {
+            margin: 0 0 8px;
+            color: gold;
+            font-size: 1.05rem;
+        }
+        .amigo-card p {
+            margin: 5px 0;
+            font-size: 14px;
+        }
+        .amigo-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 12px;
+        }
+        .amigo-actions .ver { background: #4CAF50; color: #fff; }
+        .amigo-actions .repes { background: #FFC107; color: #111; }
+        .amigo-actions .comparar { background: #2196F3; color: #fff; }
+        .amigo-actions .eliminar { background: #666; color: #fff; }
+        .amigo-detalle {
+            margin-top: 18px;
+            padding: 16px;
+            border-radius: 8px;
+            background: rgba(0,0,0,0.25);
+            border: 1px solid rgba(255,255,255,0.14);
+            white-space: pre-wrap;
+            font-size: 14px;
+            line-height: 1.45;
         }
 
         .site-header {
@@ -437,6 +512,7 @@
         <button class="tengo" onclick="mostrar('tengo')">Pegadas</button>
         <button class="repetidas" onclick="mostrar('repetidas')">Repetidas</button>
         <button class="faltan" onclick="mostrar('faltan')">Faltan</button>
+        <button class="todas" onclick="mostrar('amigos')">Amigos</button>
         <button class="pdf" onclick="generarPDF()">Descargar PDF</button>
     </nav>
     <div class="header-auth">
@@ -510,6 +586,15 @@
     <section id="tengo" class="hidden"></section>
     <section id="repetidas" class="hidden"></section>
     <section id="faltan" class="hidden"></section>
+    <section id="amigos" class="hidden">
+        <div class="amigos-toolbar">
+            <input type="text" id="amigo-codigo-input" placeholder="Código de amigo" maxlength="14" autocomplete="off">
+            <button type="button" onclick="agregarAmigoPorCodigo()">Agregar amigo</button>
+            <button type="button" onclick="cargarAmigos(true)">Actualizar</button>
+        </div>
+        <div id="amigos-lista"></div>
+        <div id="amigo-detalle" class="amigo-detalle hidden"></div>
+    </section>
     </div>
 </main>
 
@@ -946,8 +1031,10 @@
     }
 
     let _recoveryPwdUiAbierta = false;
+    let _recoveryPasswordEnCurso = false;
     async function pedirNuevaPasswordTrasRecovery(sb = getSupabase()) {
         if (!sb || _recoveryPwdUiAbierta) return;
+        _recoveryPasswordEnCurso = true;
         _recoveryPwdUiAbierta = true;
         const { value: nueva } = await Swal.fire({
             title: "Elegí una contraseña nueva",
@@ -976,17 +1063,19 @@
         });
         if (!nueva) {
             _recoveryPwdUiAbierta = false;
+            _recoveryPasswordEnCurso = false;
             return;
         }
         const { error } = await sb.auth.updateUser({ password: nueva });
         if (error) {
             _recoveryPwdUiAbierta = false;
+            _recoveryPasswordEnCurso = false;
             const x = mensajeAuthError(error);
             return Swal.fire({ ...x, ...swalBase });
         }
         await Swal.fire({
             title: "Contraseña actualizada",
-            text: "Ya podés usar tu nueva clave. Si no entrás solo, tocá «Iniciar sesión».",
+            text: "Ahora inicia sesion con tu nueva contraseña.",
             icon: "success",
             ...swalBase
         });
@@ -1032,10 +1121,12 @@
             const actualizada = await pedirNuevaPasswordTrasRecovery(sb);
             limpiarParametrosRecoveryUrl();
             if (actualizada) {
-                const { data } = await sb.auth.getUser();
-                if (data && data.user) await aplicarSesionSupabase(sb, data.user);
+                await cerrarSesionTemporalRecovery(sb);
+                abrirLogin();
             } else {
                 inicializar();
+                renderMejorado();
+                mostrar("todas");
                 aplicarSesionActivaUI(false);
             }
             return true;
@@ -1049,6 +1140,25 @@
             });
             return true;
         }
+    }
+
+    async function cerrarSesionTemporalRecovery(sb = getSupabase()) {
+        usuarioActual = "";
+        nombreVisibleUsuario = "";
+        supabaseUserActual = null;
+        try {
+            if (sb) {
+                const { error } = await sb.auth.signOut();
+                if (error) console.warn("cerrarSesionTemporalRecovery:", error.message || error);
+            }
+        } catch (error) {
+            console.warn("cerrarSesionTemporalRecovery:", error);
+        }
+        inicializar();
+        renderMejorado();
+        mostrar("todas");
+        aplicarSesionActivaUI(false);
+        _recoveryPasswordEnCurso = false;
     }
 
     async function guardarProgresoSupabase() {
@@ -1192,6 +1302,7 @@
         if (!sb || !user) return;
         supabaseUserActual = user;
         usuarioActual = (user.email || "").trim().toLowerCase();
+        amigosCache = [];
         cerrarLoginOverlay();
         await cargarDatosUsuario(sb, user);
         aplicarSesionActivaUI(true);
@@ -1213,6 +1324,7 @@
         usuarioActual = "";
         nombreVisibleUsuario = "";
         supabaseUserActual = null;
+        amigosCache = [];
         cerrarLoginOverlay();
         inicializar();
         renderMejorado();
@@ -1234,9 +1346,15 @@
     async function manejarAuthStateChange(sb, event, session) {
         try {
             if (event === "PASSWORD_RECOVERY") {
-                await pedirNuevaPasswordTrasRecovery(sb);
+                const actualizada = await pedirNuevaPasswordTrasRecovery(sb);
+                if (actualizada) {
+                    limpiarParametrosRecoveryUrl();
+                    await cerrarSesionTemporalRecovery(sb);
+                    abrirLogin();
+                }
                 return;
             }
+            if (_recoveryPasswordEnCurso) return;
             if (event === "TOKEN_REFRESHED" && session && session.user) {
                 supabaseUserActual = session.user;
                 return;
@@ -1432,6 +1550,32 @@
         return { yoLeSirvo, elMeSirve };
     }
 
+    function esFiguritaBrillante(id) {
+        const partes = String(id || "").trim().split(/\s+/);
+        const cod = (partes[0] || "").toUpperCase();
+        const num = (partes[1] || "").padStart(2, "0");
+        return cod === "FWC" || num === "01";
+    }
+
+    function valorIntercambio(items) {
+        return items.reduce((acc, item) => {
+            const cantidad = Math.max(1, parseInt(item.repes, 10) || 1);
+            if (esFiguritaBrillante(item.id)) {
+                acc.brillantes += cantidad;
+                acc.valor += cantidad * 3;
+            } else {
+                acc.normales += cantidad;
+                acc.valor += cantidad;
+            }
+            acc.total += cantidad;
+            return acc;
+        }, { normales: 0, brillantes: 0, total: 0, valor: 0 });
+    }
+
+    function formatearValorIntercambio(v) {
+        return `${v.total} figurita(s): ${v.normales} normal(es) + ${v.brillantes} brillante(s) = valor ${v.valor}`;
+    }
+
     function formatearListaCruce(items) {
         if (!items.length) return "(ninguna)";
         const porCodigo = {};
@@ -1446,6 +1590,227 @@
             .join("\n");
     }
 
+    let amigosCache = [];
+    let amigosCargando = false;
+
+    function agruparIdsPorCodigo(items) {
+        const grupos = {};
+        items.forEach((item) => {
+            const [cod, num] = String(item).split(" ");
+            if (!grupos[cod]) grupos[cod] = [];
+            grupos[cod].push(num || item);
+        });
+        return Object.keys(grupos)
+            .sort()
+            .map((cod) => `${cod}: ${grupos[cod].join(", ")}`)
+            .join("\n") || "(ninguna)";
+    }
+
+    function resumenAlbumBytes(albumBytes) {
+        const ids = ordenAlbumIds();
+        const n = Math.min(albumBytes.length, ids.length);
+        const pegadas = [];
+        const faltan = [];
+        const repetidas = [];
+        let totalRepes = 0;
+        for (let i = 0; i < n; i++) {
+            const b = albumBytes[i];
+            if (b > 0) pegadas.push(ids[i]);
+            else faltan.push(ids[i]);
+            if (b >= 2) {
+                const repes = b - 1;
+                totalRepes += repes;
+                repetidas.push(repes > 1 ? `${ids[i]} x${repes}` : ids[i]);
+            }
+        }
+        return {
+            total: ids.length,
+            pegadas,
+            faltan,
+            repetidas,
+            totalRepes,
+            progreso: ids.length ? (pegadas.length / ids.length) * 100 : 0
+        };
+    }
+
+    function textoAlbumAmigo(nombre, decoded, modo = "album") {
+        const r = resumenAlbumBytes(decoded.albumBytes);
+        const partes = [
+            `${nombre}`,
+            `Progreso: ${r.pegadas.length}/${r.total} (${r.progreso.toFixed(1)}%)`,
+            `Repetidas: ${r.totalRepes}`
+        ];
+        if (modo === "repetidas") {
+            partes.push("", "REPETIDAS", agruparIdsPorCodigo(r.repetidas));
+            return partes.join("\n");
+        }
+        partes.push(
+            "",
+            "PEGADAS",
+            agruparIdsPorCodigo(r.pegadas),
+            "",
+            "FALTAN",
+            agruparIdsPorCodigo(r.faltan),
+            "",
+            "REPETIDAS",
+            agruparIdsPorCodigo(r.repetidas)
+        );
+        return partes.join("\n");
+    }
+
+    function mostrarDetalleAmigo(nombre, decoded, modo) {
+        const detalle = document.getElementById("amigo-detalle");
+        if (!detalle) return;
+        detalle.textContent = textoAlbumAmigo(nombre, decoded, modo);
+        detalle.classList.remove("hidden");
+        detalle.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+
+    async function cargarAmigos(forzar = false) {
+        const lista = document.getElementById("amigos-lista");
+        const detalle = document.getElementById("amigo-detalle");
+        if (!lista) return;
+        if (!usuarioActual) {
+            lista.textContent = "Inicia sesion para guardar y ver amigos.";
+            if (detalle) detalle.classList.add("hidden");
+            return;
+        }
+        const sb = getSupabase();
+        if (!sb) {
+            lista.textContent = "El modulo de amigos requiere Supabase.";
+            return;
+        }
+        if (amigosCargando) return;
+        if (amigosCache.length && !forzar) {
+            await renderAmigos(amigosCache);
+            return;
+        }
+        amigosCargando = true;
+        lista.textContent = "Cargando amigos...";
+        try {
+            const { data, error } = await sb.rpc("list_friend_albums");
+            if (error) throw error;
+            amigosCache = Array.isArray(data) ? data : [];
+            await renderAmigos(amigosCache);
+        } catch (error) {
+            console.error("cargarAmigos:", error);
+            lista.textContent = "No se pudieron cargar tus amigos. Revisá que hayas ejecutado el SQL actualizado.";
+        } finally {
+            amigosCargando = false;
+        }
+    }
+
+    async function renderAmigos(rows) {
+        const lista = document.getElementById("amigos-lista");
+        const detalle = document.getElementById("amigo-detalle");
+        if (!lista) return;
+        lista.innerHTML = "";
+        if (detalle) detalle.classList.add("hidden");
+        if (!rows.length) {
+            lista.textContent = "Todavia no agregaste amigos.";
+            return;
+        }
+        for (const row of rows) {
+            const nombre = row.username || "Amigo";
+            let decoded = null;
+            if (row.payload) decoded = await decodeAlbumPayloadFlexible(row.payload);
+            const card = document.createElement("div");
+            card.className = "amigo-card";
+            const h = document.createElement("h3");
+            h.textContent = nombre;
+            card.appendChild(h);
+            if (decoded) {
+                const r = resumenAlbumBytes(decoded.albumBytes);
+                const p = document.createElement("p");
+                p.textContent = `Progreso: ${r.pegadas.length}/${r.total} (${r.progreso.toFixed(1)}%)`;
+                const rep = document.createElement("p");
+                rep.textContent = `Repetidas: ${r.totalRepes}`;
+                const upd = document.createElement("p");
+                upd.textContent = row.updated_at ? `Actualizado: ${new Date(row.updated_at).toLocaleString()}` : "Actualizado: sin fecha";
+                card.append(p, rep, upd);
+            } else {
+                const p = document.createElement("p");
+                p.textContent = "Sin album disponible.";
+                card.appendChild(p);
+            }
+            const actions = document.createElement("div");
+            actions.className = "amigo-actions";
+            const btnAlbum = document.createElement("button");
+            btnAlbum.className = "ver";
+            btnAlbum.textContent = "Ver album";
+            btnAlbum.disabled = !decoded;
+            btnAlbum.onclick = () => mostrarDetalleAmigo(nombre, decoded, "album");
+            const btnRepes = document.createElement("button");
+            btnRepes.className = "repes";
+            btnRepes.textContent = "Ver repetidas";
+            btnRepes.disabled = !decoded;
+            btnRepes.onclick = () => mostrarDetalleAmigo(nombre, decoded, "repetidas");
+            const btnComparar = document.createElement("button");
+            btnComparar.className = "comparar";
+            btnComparar.textContent = "Comparar";
+            btnComparar.disabled = !row.payload;
+            btnComparar.onclick = () => ejecutarCruceConPayload(row.payload);
+            const btnEliminar = document.createElement("button");
+            btnEliminar.className = "eliminar";
+            btnEliminar.textContent = "Eliminar";
+            btnEliminar.onclick = () => eliminarAmigo(row.friend_id, nombre);
+            actions.append(btnAlbum, btnRepes, btnComparar, btnEliminar);
+            card.appendChild(actions);
+            lista.appendChild(card);
+        }
+    }
+
+    async function agregarAmigoPorCodigo() {
+        if (!requiereSesionParaEditar()) return;
+        const input = document.getElementById("amigo-codigo-input");
+        const code = input && input.value ? input.value.trim().toUpperCase().replace(/\s/g, "") : "";
+        if (!/^[A-Z0-9]{6,14}$/.test(code)) {
+            return Swal.fire({ title: "Codigo invalido", text: "Pega el codigo de tu amigo.", icon: "warning", ...swalBase });
+        }
+        const sb = getSupabase();
+        if (!sb) return Swal.fire({ title: "Supabase requerido", text: "El modulo de amigos necesita Supabase.", icon: "error", ...swalBase });
+        const { data, error } = await sb.rpc("add_friend_by_code", { p_code: code });
+        if (error) {
+            console.error(error);
+            return Swal.fire({ title: "No se pudo agregar", text: error.message, icon: "error", ...swalBase });
+        }
+        if (!data || !data.ok) {
+            const mensajes = {
+                invalid_code: "El codigo no tiene el formato correcto.",
+                not_found: "No encontramos un album vigente con ese codigo.",
+                self: "No podes agregarte a vos mismo."
+            };
+            return Swal.fire({ title: "No se pudo agregar", text: mensajes[data && data.reason] || "Codigo no disponible.", icon: "warning", ...swalBase });
+        }
+        if (input) input.value = "";
+        amigosCache = [];
+        await cargarAmigos(true);
+        return Swal.fire({ title: "Amigo agregado", text: data.username || "Listo", icon: "success", timer: 1600, showConfirmButton: false, ...swalBase });
+    }
+
+    async function eliminarAmigo(friendId, nombre) {
+        if (!requiereSesionParaEditar()) return;
+        const sb = getSupabase();
+        if (!sb || !friendId) return;
+        const ok = await Swal.fire({
+            title: "Eliminar amigo",
+            text: `Vas a quitar a ${nombre} de tu lista.`,
+            icon: "warning",
+            showCancelButton: true,
+            confirmButtonText: "Eliminar",
+            cancelButtonText: "Cancelar",
+            ...swalBase
+        });
+        if (!ok.isConfirmed) return;
+        const { error } = await sb.rpc("remove_friend", { p_friend_id: friendId });
+        if (error) {
+            console.error(error);
+            return Swal.fire({ title: "No se pudo eliminar", text: error.message, icon: "error", ...swalBase });
+        }
+        amigosCache = [];
+        await cargarAmigos(true);
+    }
+
     function ocultarPanelCruce() {
         const p = document.getElementById("panel-cruce-intercambio");
         if (p) p.classList.remove("visible");
@@ -1454,6 +1819,8 @@
     function mostrarResultadoCruce(nombreAmigo, cruce) {
         const panel = document.getElementById("panel-cruce-intercambio");
         if (!panel) return;
+        const doy = valorIntercambio(cruce.yoLeSirvo);
+        const recibo = valorIntercambio(cruce.elMeSirve);
         document.getElementById("cruce-titulo").textContent = "Cruce automático (repetidas ↔ faltantes)";
         document.getElementById("cruce-subtitulo").textContent =
             `Comparando tu álbum con el de: ${nombreAmigo}. ` +
@@ -1462,6 +1829,12 @@
         document.getElementById("cruce-el-me-da").textContent = formatearListaCruce(cruce.elMeSirve);
         document.getElementById("cruce-resumen").textContent =
             `Podés ofrecerle ${cruce.yoLeSirvo.length} figurita(s) · Te conviene pedirle ${cruce.elMeSirve.length} figurita(s)`;
+        document.getElementById("cruce-resumen").textContent =
+            `Podés ofrecerle ${cruce.yoLeSirvo.length} figurita(s) · Te conviene pedirle ${cruce.elMeSirve.length} figurita(s)\n` +
+            `Brillantes que das: ${doy.brillantes} · Brillantes que recibís: ${recibo.brillantes}\n` +
+            `Valor que das: ${formatearValorIntercambio(doy)}\n` +
+            `Valor que recibís: ${formatearValorIntercambio(recibo)}\n` +
+            "Recomendación: 1 brillante equivale a 3 figuritas normales.";
         panel.classList.add("visible");
         panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
     }
@@ -1625,10 +1998,11 @@
 
     function mostrar(seccion) {
         vistaActual = seccion;
-        ["todas", "tengo", "repetidas", "faltan"].forEach(id => {
+        ["todas", "tengo", "repetidas", "faltan", "amigos"].forEach(id => {
             document.getElementById(id).classList.add("hidden");
         });
         document.getElementById(seccion).classList.remove("hidden");
+        if (seccion === "amigos") void cargarAmigos();
     }
 
     function crearBloquePais(codigo) {
@@ -1699,6 +2073,10 @@
 // Escuchar el Enter
 document.getElementById("busqueda").addEventListener("keydown", e => {
     if (e.key === "Enter") buscarPais();
+});
+
+document.getElementById("amigo-codigo-input")?.addEventListener("keydown", e => {
+    if (e.key === "Enter") agregarAmigoPorCodigo();
 });
 
     let _refreshQrTimer;
