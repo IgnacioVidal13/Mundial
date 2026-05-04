@@ -807,6 +807,18 @@
         return sbClient;
     }
 
+    async function obtenerBearerSesionSupabase(sb) {
+        if (!sb || !sb.auth || !sb.auth.getSession) return "";
+        try {
+            const { data } = await sb.auth.getSession();
+            const token = data && data.session && data.session.access_token ? String(data.session.access_token).trim() : "";
+            return token;
+        } catch (error) {
+            console.warn("obtenerBearerSesionSupabase:", error);
+            return "";
+        }
+    }
+
     let usuarioActual = "";
     let nombreVisibleUsuario = "";
     let supabaseUserActual = null;
@@ -841,15 +853,19 @@
         }
         const anonKey = String(SUPABASE_ANON_KEY || "").trim();
         const url = `${SUPABASE_URL.replace(/\/$/, "")}/functions/v1/contact-support`;
+        const bearerSesion = await obtenerBearerSesionSupabase(sb);
+        const headers = {
+            "Content-Type": "application/json",
+            "apikey": anonKey
+        };
+        if (bearerSesion) {
+            headers.Authorization = `Bearer ${bearerSesion}`;
+        }
         let res;
         try {
             res = await fetch(url, {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "apikey": anonKey,
-                    "Authorization": `Bearer ${anonKey}`
-                },
+                headers,
                 body: JSON.stringify({
                     email,
                     mensaje,
@@ -873,10 +889,14 @@
                 invalid_email: "El correo no parece válido.",
                 empty_message: "Escribí un mensaje.",
                 resend_error: "Resend rechazó el envío. Revisá la configuración del remitente.",
-                method_not_allowed: "Método no permitido por la función de soporte."
+                method_not_allowed: "Método no permitido por la función de soporte.",
+                invalid_json: "La función de soporte recibió un cuerpo inválido."
             };
             if (res.status === 404) {
                 throw new Error("La función contact-support no está desplegada en Supabase.");
+            }
+            if (res.status === 401 || res.status === 403) {
+                throw new Error("La función contact-support está bloqueada por autenticación. Hay que desplegarla con verify_jwt = false o enviar una sesión válida.");
             }
             throw new Error(errores[data && data.error] || (data && data.error) || "No se pudo enviar el mensaje.");
         }
@@ -986,11 +1006,11 @@
             });
         } catch (error) {
             const errorMessage = error.message || "Revisá el formulario y volvé a intentar.";
-            const puedeUsarEmail = /conectar|desplegada|No se pudo enviar/.test(errorMessage);
+            const puedeUsarEmail = /conectar|desplegada|bloqueada por autenticación|No se pudo enviar/.test(errorMessage);
             const result = await Swal.fire({
                 title: "No se pudo enviar",
                 text: puedeUsarEmail
-                    ? "El envío automático no está disponible. Podés abrir tu correo con el mensaje ya armado."
+                    ? "El envío automático no respondió. Podés abrir tu correo con el mensaje ya armado."
                     : errorMessage,
                 icon: "error",
                 showCancelButton: puedeUsarEmail,
