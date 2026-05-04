@@ -419,6 +419,19 @@
             background: #ffd700;
             color: #111;
         }
+        .contact-email-box {
+            display: inline-block;
+            margin-top: 6px;
+            padding: 12px 14px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 215, 0, 0.5);
+            background: rgba(255, 215, 0, 0.08);
+            color: #ffd700;
+            font-family: Consolas, monospace;
+            font-size: 18px;
+            font-weight: bold;
+            word-break: break-all;
+        }
         .instrucciones-uso {
             text-align: left;
             color: #f4f4f4;
@@ -846,73 +859,6 @@
         return null;
     }
 
-    async function enviarContactoSoporte({ email, mensaje }) {
-        const sb = getSupabase();
-        if (!sb) {
-            throw new Error("Supabase no está disponible.");
-        }
-        const anonKey = String(SUPABASE_ANON_KEY || "").trim();
-        const url = `${SUPABASE_URL.replace(/\/$/, "")}/functions/v1/contact-support`;
-        const bearerSesion = await obtenerBearerSesionSupabase(sb);
-        const headers = {
-            "Content-Type": "application/json",
-            "apikey": anonKey
-        };
-        if (bearerSesion) {
-            headers.Authorization = `Bearer ${bearerSesion}`;
-        }
-        let res;
-        try {
-            res = await fetch(url, {
-                method: "POST",
-                headers,
-                body: JSON.stringify({
-                    email,
-                    mensaje,
-                    usuario: usuarioActual || "",
-                    nombre: obtenerNombreParaAmigos()
-                })
-            });
-        } catch (error) {
-            console.error("enviarContactoSoporte fetch:", error);
-            throw new Error("No se pudo conectar con soporte. Revisá que la función contact-support esté desplegada en Supabase.");
-        }
-        let data = null;
-        try {
-            data = await res.json();
-        } catch (e) {
-            data = null;
-        }
-        if (!res.ok || !data || data.ok !== true) {
-            const errores = {
-                missing_resend_key: "Falta configurar RESEND_API_KEY en Supabase.",
-                invalid_email: "El correo no parece válido.",
-                empty_message: "Escribí un mensaje.",
-                resend_error: "Resend rechazó el envío. Revisá la configuración del remitente.",
-                method_not_allowed: "Método no permitido por la función de soporte.",
-                invalid_json: "La función de soporte recibió un cuerpo inválido."
-            };
-            if (res.status === 404) {
-                throw new Error("La función contact-support no está desplegada en Supabase.");
-            }
-            if (res.status === 401 || res.status === 403) {
-                throw new Error("La función contact-support está bloqueada por autenticación. Hay que desplegarla con verify_jwt = false o enviar una sesión válida.");
-            }
-            throw new Error(errores[data && data.error] || (data && data.error) || "No se pudo enviar el mensaje.");
-        }
-        return data;
-    }
-
-    function abrirEmailSoporte({ email, mensaje }) {
-        const asunto = encodeURIComponent("Contacto desde Mi Lista Mundialista");
-        const cuerpo = encodeURIComponent(
-            `Correo: ${email}\n` +
-            `Usuario: ${obtenerNombreParaAmigos()} ${usuarioActual ? `(${usuarioActual})` : ""}\n\n` +
-            `${mensaje}`
-        );
-        window.location.href = `mailto:${SUPPORT_EMAIL}?subject=${asunto}&body=${cuerpo}`;
-    }
-
     function abrirInstruccionesUso() {
         Swal.fire({
             title: "Instrucciones de uso",
@@ -952,7 +898,7 @@
                     <ul>
                         <li>En <strong>Amigos</strong> podés agregar personas por código, ver su progreso y comparar álbumes.</li>
                         <li><strong>Descargar PDF</strong> genera un resumen imprimible de tu álbum.</li>
-                        <li><strong>Contactar</strong> abre el formulario para enviar un mensaje a soporte.</li>
+                        <li><strong>Contactar</strong> muestra la dirección de mail de soporte para escribir directo.</li>
                     </ul>
                 </div>
             `,
@@ -962,64 +908,45 @@
         });
     }
 
+    async function copiarEmailSoporte() {
+        const email = SUPPORT_EMAIL;
+        try {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                await navigator.clipboard.writeText(email);
+            } else {
+                const input = document.createElement("input");
+                input.value = email;
+                document.body.appendChild(input);
+                input.select();
+                document.execCommand("copy");
+                document.body.removeChild(input);
+            }
+            toast("Correo copiado");
+        } catch (error) {
+            console.warn("copiarEmailSoporte:", error);
+            toast("No se pudo copiar");
+        }
+    }
+
     async function abrirContacto() {
-        const { value, isConfirmed } = await Swal.fire({
-            title: "Contactar soporte",
-            html:
-                '<input id="contacto-email" type="email" class="swal2-input" placeholder="Tu correo">' +
-                '<textarea id="contacto-mensaje" class="swal2-textarea" placeholder="Escribí tu mensaje"></textarea>',
-            focusConfirm: false,
+        await Swal.fire({
+            title: "Contacto",
+            html: `
+                <div style="text-align:left;line-height:1.45">
+                    <p>Escribime directo a:</p>
+                    <div class="contact-email-box">${SUPPORT_EMAIL}</div>
+                    <p style="margin-top:12px">La podés copiar con el botón de abajo.</p>
+                </div>
+            `,
             showCancelButton: true,
-            confirmButtonText: "Enviar",
-            cancelButtonText: "Cancelar",
-            preConfirm: () => {
-                const email = document.getElementById("contacto-email")?.value.trim() || "";
-                const mensaje = document.getElementById("contacto-mensaje")?.value.trim() || "";
-                if (!email || !email.includes("@")) {
-                    Swal.showValidationMessage("Escribí un correo válido.");
-                    return false;
-                }
-                if (!mensaje) {
-                    Swal.showValidationMessage("Escribí un mensaje.");
-                    return false;
-                }
-                return { email, mensaje };
+            confirmButtonText: "Copiar mail",
+            cancelButtonText: "Cerrar",
+            didOpen: () => {
+                const confirmBtn = Swal.getConfirmButton();
+                if (confirmBtn) confirmBtn.onclick = copiarEmailSoporte;
             },
             ...swalBase
         });
-        if (!isConfirmed || !value) return;
-        try {
-            Swal.fire({
-                title: "Enviando...",
-                allowOutsideClick: false,
-                didOpen: () => Swal.showLoading(),
-                showConfirmButton: false,
-                ...swalBase
-            });
-            await enviarContactoSoporte(value);
-            Swal.close();
-            Swal.fire({
-                title: "Mensaje enviado",
-                text: "Te respondo a la casilla que escribiste.",
-                icon: "success",
-                ...swalBase
-            });
-        } catch (error) {
-            const errorMessage = error.message || "Revisá el formulario y volvé a intentar.";
-            const puedeUsarEmail = /conectar|desplegada|bloqueada por autenticación|No se pudo enviar/.test(errorMessage);
-            const result = await Swal.fire({
-                title: "No se pudo enviar",
-                text: puedeUsarEmail
-                    ? "El envío automático no respondió. Podés abrir tu correo con el mensaje ya armado."
-                    : errorMessage,
-                icon: "error",
-                showCancelButton: puedeUsarEmail,
-                confirmButtonText: puedeUsarEmail ? "Abrir email" : "Entendido",
-                cancelButtonText: "Cancelar",
-                ...swalBase
-            });
-            if (puedeUsarEmail && result.isConfirmed) abrirEmailSoporte(value);
-        }
     }
 
     function nombreUsuarioLocalDisponible(norm) {
