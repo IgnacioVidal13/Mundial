@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://milistamundialista.dx.com.ar/sitemap.xml
+Sitemap: https://milistamundialista.com/sitemap.xml
