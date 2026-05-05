@@ -99,6 +99,53 @@
             margin: 30px auto; max-width: 500px;
         }
 
+        .voz-actions {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin: 0 auto 12px;
+            max-width: 500px;
+        }
+        .voz-actions button {
+            border: none;
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-weight: 700;
+            cursor: pointer;
+            color: #fff;
+            min-width: 150px;
+        }
+        .btn-voz-cambio { background: #96d6ea; }
+        .btn-voz-agregar { background: #4CAF50; }
+        .codigo-agregar-row {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin: 0 auto 18px;
+            max-width: 500px;
+        }
+        .codigo-agregar-row input {
+            flex: 1;
+            min-width: 220px;
+            padding: 12px 14px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            outline: none;
+            font-size: 16px;
+            font-family: inherit;
+        }
+        .codigo-agregar-row button {
+            padding: 12px 18px;
+            border: none;
+            border-radius: 6px;
+            background: #2196F3;
+            color: #fff;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
         #busqueda {
             flex: 1; padding: 12px 15px; border: 1px solid #ccc;
             border-right: none; border-radius: 4px 0 0 4px;
@@ -472,17 +519,20 @@
             color: gold;
         }
         .amigo-barra {
-            margin: 8px 0 14px;
+            margin: 10px auto 14px;
+            max-width: 640px;
         }
         .amigo-barra-wrap {
             position: relative;
-            padding-top: 0;
+            width: 100%;
+            height: 44px;
         }
         .amigo-barra-track {
             position: relative;
             width: 100%;
-            height: 20px;
-            border-radius: 999px;
+            height: 36px;
+            margin-top: 4px;
+            border-radius: 20px;
             background: #222;
             border: 1px solid rgba(255,255,255,0.18);
             overflow: hidden;
@@ -495,16 +545,6 @@
             background: linear-gradient(90deg, #d4af37, #ffd700, #d4af37);
             border-radius: 999px;
             box-shadow: inset 0 0 0 1px rgba(255,255,255,0.12);
-        }
-        .amigo-barra-copa {
-            position: absolute;
-            top: 50%;
-            width: 30px;
-            height: 30px;
-            transform: translate(-50%, -50%) rotate(90deg);
-            transform-origin: center;
-            filter: drop-shadow(0 0 4px rgba(0,0,0,0.55));
-            pointer-events: none;
         }
         .amigo-barra-meta {
             display: flex;
@@ -731,14 +771,14 @@
     <div class="busqueda-container">
         <input type="text" id="busqueda" placeholder="Código de país (ej: ARG)...">
         <button id="btnBuscar" onclick="buscarPais()">Buscar</button>
-        <button
-            onclick="activarVoz()"
-            title="Cambio por voz: decí 'ARG 13 por BRA 05'. Formato: codigo numero por codigo numero. Ejemplos: 'arg 13 por col 5' o 'fwc 1 por kor 3'."
-            aria-label="Activar cambio por voz"
-            style="background: #96d6ea; color: white; border-radius: 50%; width: 50px; height: 50px; border: none; cursor: pointer;"
-        >
-            IA
-        </button>
+    </div>
+    <div class="voz-actions">
+        <button type="button" class="btn-voz-cambio" onclick="activarVozCambio()" title="Cambio por voz: decí 'ARG 13 por BRA 05'">Cambiar por voz</button>
+        <button type="button" class="btn-voz-agregar" onclick="activarVozAgregar()" title="Alta por voz: decí 'ARG 13' o 'agregar ARG 13'">Agregar por voz</button>
+    </div>
+    <div class="codigo-agregar-row">
+        <input type="text" id="codigo-figurita-input" placeholder="Código de figurita (ej: ARG 13)" autocomplete="off">
+        <button type="button" onclick="agregarFiguritaDesdeCodigo()">Agregar</button>
     </div>
 
     <section id="todas"></section>
@@ -1108,10 +1148,9 @@
                 console.warn("asegurarAmistadMutuaPorCodigo:", error.message || error);
                 return false;
             }
-            if (vistaActual === "amigos") {
-                amigosCache = [];
-                void cargarAmigos(true);
-            }
+            amigosCache = [];
+            programarRefrescoSuave();
+            if (vistaActual === "amigos") void cargarAmigos(true);
             return !!(data && data.ok);
         } catch (e) {
             console.warn("asegurarAmistadMutuaPorCodigo:", e);
@@ -1119,18 +1158,21 @@
         }
     }
 
-    function toastRefrescarTrasEscaneo() {
-        Swal.fire({
-            title: "Escaneo completado",
-            text: "Refrescá la página para ver el amigo agregado en Amigos.",
-            icon: "info",
-            toast: true,
-            position: "top-end",
-            timer: 2600,
-            showConfirmButton: false,
-            background: "#1a1a1a",
-            color: "#ffffff"
-        });
+    function programarRefrescoSuave() {
+        clearTimeout(_refreshUiTimer);
+        _refreshUiTimer = setTimeout(async () => {
+            actualizarProgreso();
+            if (vistaActual === "amigos") {
+                amigosCache = [];
+                await cargarAmigos(true);
+                if (typeof generarInterfazCompartir === "function") {
+                    void generarInterfazCompartir();
+                }
+                scheduleRefreshQR();
+            } else {
+                renderMejorado();
+            }
+        }, 120);
     }
 
     function toastFooterAyuda() {
@@ -2072,6 +2114,7 @@
         if (!requiereSesionParaEditar()) return;
         fig.favorite = !fig.favorite;
         renderMejorado();
+        programarRefrescoSuave();
     }
 
     function intercambioMinimo(itemsYo, itemsEl) {
@@ -2252,7 +2295,6 @@
                     <div class="amigo-barra-track">
                         <div class="amigo-barra-fill" style="width:${width}%"></div>
                     </div>
-                    <img class="amigo-barra-copa" src="copa.png" alt="" aria-hidden="true" style="left:${width}%">
                 </div>
                 <div class="amigo-barra-meta">
                     <span>Progreso: ${pegadas}/${total}</span>
@@ -2399,7 +2441,24 @@
         if (input) input.value = "";
         amigosCache = [];
         await cargarAmigos(true);
+        programarRefrescoSuave();
         return Swal.fire({ title: "Amigo agregado", text: data.username || "Listo", icon: "success", timer: 1600, showConfirmButton: false, ...swalBase });
+    }
+
+    async function agregarFiguritaDesdeCodigo() {
+        if (!requiereSesionParaEditar()) return;
+        const input = document.getElementById("codigo-figurita-input");
+        const raw = input && input.value ? input.value.trim() : "";
+        const dato = extraerDatosPro(raw);
+        if (!dato) {
+            return Swal.fire({ title: "Codigo invalido", text: "Pega algo como ARG 13.", icon: "warning", ...swalBase });
+        }
+        const ok = agregarUnaFiguritaPorCodigo(dato.cod, dato.num);
+        if (!ok) {
+            return Swal.fire({ title: "No encontrado", text: `No ubique ${dato.cod} ${dato.num}.`, icon: "error", ...swalBase });
+        }
+        if (input) input.value = "";
+        return Swal.fire({ title: "Figurita agregada", text: `${dato.cod} ${dato.num}`, icon: "success", timer: 1600, showConfirmButton: false, ...swalBase });
     }
 
     async function eliminarAmigo(friendId, nombre) {
@@ -2423,6 +2482,7 @@
         }
         amigosCache = [];
         await cargarAmigos(true);
+        programarRefrescoSuave();
     }
 
     function ocultarPanelCruce() {
@@ -2561,7 +2621,7 @@
                 return;
             }
             const amistadMutua = await asegurarAmistadMutuaPorCodigo(code, sb);
-            if (amistadMutua) toastRefrescarTrasEscaneo();
+            if (amistadMutua) programarRefrescoSuave();
             await ejecutarCruceConPayload(data.payload);
             return;
         }
@@ -2696,11 +2756,16 @@ document.getElementById("busqueda").addEventListener("keydown", e => {
     if (e.key === "Enter") buscarPais();
 });
 
+document.getElementById("codigo-figurita-input")?.addEventListener("keydown", e => {
+    if (e.key === "Enter") agregarFiguritaDesdeCodigo();
+});
+
 document.getElementById("amigo-codigo-input")?.addEventListener("keydown", e => {
     if (e.key === "Enter") agregarAmigoPorCodigo();
 });
 
     let _refreshQrTimer;
+    let _refreshUiTimer;
     function scheduleRefreshQR() {
         if (typeof usuarioActual === "undefined" || !usuarioActual) return;
         if (vistaActual !== "amigos") return;
@@ -2709,6 +2774,13 @@ document.getElementById("amigo-codigo-input")?.addEventListener("keydown", e => 
             if (typeof generarInterfazCompartir === "function") void generarInterfazCompartir();
         }, 700);
     }
+
+    document.addEventListener("click", (e) => {
+        const boton = e.target && e.target.closest ? e.target.closest("button") : null;
+        if (!boton) return;
+        if (boton.closest(".swal2-container")) return;
+        programarRefrescoSuave();
+    }, true);
 
     function renderMejorado() {
         const secciones = {
@@ -2720,7 +2792,6 @@ document.getElementById("amigo-codigo-input")?.addEventListener("keydown", e => 
         };
 
         Object.keys(secciones).forEach(sec => secciones[sec].innerHTML = "");
-
         const listasPaises = { todas: {}, tengo: {}, repetidas: {}, faltan: {}, favoritas: {} };
 
         figuritas.forEach(fig => {
@@ -2761,9 +2832,7 @@ document.getElementById("amigo-codigo-input")?.addEventListener("keydown", e => 
 
                 box.onclick = () => {
                     if (!requiereSesionParaEditar()) return;
-                    if (fig.estado === "faltan") fig.estado = "tengo";
-                    else fig.cantidad++;
-                    renderMejorado();
+                    agregarUnaFiguritaPorCodigo(fig.codigo, parseInt(fig.id.split(" ")[1], 10));
                 };
                 return box;
             };
@@ -3007,6 +3076,7 @@ document.getElementById("amigo-codigo-input")?.addEventListener("keydown", e => 
     })();
 
     let timerSeguridad;
+    let modoVozActual = "cambio";
     const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
     const recognition = SpeechRec ? new SpeechRec() : null;
     if (recognition) {
@@ -3034,23 +3104,27 @@ const diccionarioPaises = {
     "croacia": "CRO", "ghana": "GHA", "panamá": "PAN", "panama": "PAN"
 };
 
-    function activarVoz() {
+    function iniciarVoz(modo) {
         if (!requiereSesionParaEditar()) return;
         if (!recognition) {
             return Swal.fire({
                 title: "No disponible",
-            text: "Tu navegador no soporta reconocimiento de voz (probá Chrome en escritorio o Android).",
-            icon: "info",
-            background: "#1a1a1a",
-            color: "#ffffff"
-        });
-    }
+                text: "Tu navegador no soporta reconocimiento de voz (probá Chrome en escritorio o Android).",
+                icon: "info",
+                background: "#1a1a1a",
+                color: "#ffffff"
+            });
+        }
+        modoVozActual = modo === "agregar" ? "agregar" : "cambio";
         try {
             recognition.start();
             clearTimeout(timerSeguridad);
+            const textoAyuda = modoVozActual === "agregar"
+                ? "Sirve para agregar una figurita automáticamente. Decí: ARG 13"
+                : "Sirve para hacer el cambio automáticamente. Formato: ARG 13 por BRA 05";
             Swal.fire({
-                title: "IA activa",
-                text: "Sirve para hacer el cambio automáticamente. Formato: ARG 13 por BRA 05",
+                title: modoVozActual === "agregar" ? "Agregar por voz" : "Cambiar por voz",
+                text: textoAyuda,
                 icon: "info",
                 toast: true,
                 position: "bottom",
@@ -3064,11 +3138,23 @@ const diccionarioPaises = {
                 Swal.fire({ title: "Micrófono apagado", icon: "warning", toast: true, position: "top-end", timer: 2000, showConfirmButton: false });
             }, 10000);
 
-        Swal.fire({ title: "Escuchando...", icon: "info", showConfirmButton: false, timer: 1500, toast: true, position: "top" });
-    } catch (e) {
-        console.log("Micro ya activo o error:", e);
+            Swal.fire({ title: "Escuchando...", icon: "info", showConfirmButton: false, timer: 1500, toast: true, position: "top" });
+        } catch (e) {
+            console.log("Micro ya activo o error:", e);
+        }
     }
-}
+
+    function activarVozCambio() {
+        iniciarVoz("cambio");
+    }
+
+    function activarVozAgregar() {
+        iniciarVoz("agregar");
+    }
+
+    function activarVoz() {
+        activarVozCambio();
+    }
 
 if (recognition) recognition.onresult = (event) => {
     const vozOriginal = event.results[event.results.length - 1][0].transcript.toLowerCase();
@@ -3076,24 +3162,56 @@ if (recognition) recognition.onresult = (event) => {
     // Mostramos qué entendió
     Swal.fire({ title: 'Entendido:', text: `"${vozOriginal}"`, icon: 'success', toast: true, position: 'bottom', timer: 2000, showConfirmButton: false });
 
-    const frase = vozOriginal.replace("por", "|");
-    const partes = frase.split("|");
+    if (modoVozActual === "agregar") {
+        const limpio = vozOriginal
+            .replace(/^(agregar|sumar|marcar|alta)\b/i, "")
+            .replace(/\b(figurita|figu|figura|la)\b/gi, "")
+            .trim();
+        const dato = extraerDatosPro(limpio || vozOriginal);
+        if (dato && agregarUnaFiguritaPorCodigo(dato.cod, dato.num)) {
+            Swal.fire({
+                title: "Figurita agregada",
+                text: `${dato.cod} ${dato.num}`,
+                icon: "success",
+                toast: true,
+                position: "top-end",
+                timer: 1800,
+                showConfirmButton: false,
+                ...swalBase
+            });
+        } else {
+            Swal.fire({
+                title: "No entendí la figurita",
+                text: "Decí algo como ARG 13.",
+                icon: "warning",
+                toast: true,
+                position: "top-end",
+                timer: 2200,
+                showConfirmButton: false,
+                ...swalBase
+            });
+        }
+    } else {
+        const frase = vozOriginal.replace("por", "|");
+        const partes = frase.split("|");
 
-    if (partes.length >= 2) {
-        const p1 = extraerDatosPro(partes[0]);
-        const p2 = extraerDatosPro(partes[1]);
+        if (partes.length >= 2) {
+            const p1 = extraerDatosPro(partes[0]);
+            const p2 = extraerDatosPro(partes[1]);
 
-        if (p1 && p2) {
-            ejecutarCambioVoz(p1.cod, p1.num, p2.cod, p2.num);
-            clearTimeout(timerSeguridad);
-            recognition.stop();
+            if (p1 && p2) {
+                ejecutarCambioVoz(p1.cod, p1.num, p2.cod, p2.num);
+            }
         }
     }
+
+    clearTimeout(timerSeguridad);
+    recognition.stop();
 };
 
-function extraerDatosPro(texto) {
-    let cod = null;
-    let num = null;
+    function extraerDatosPro(texto) {
+        let cod = null;
+        let num = null;
 
     // 1. Limpiamos el texto para separar letras de números (ej: "fw05" -> "fw 05")
     const textoLimpio = texto.replace(/([a-z]+)(\d+)/i, '$1 $2');
@@ -3158,6 +3276,36 @@ function extraerDatosPro(texto) {
     return (cod && num !== null) ? { cod, num } : null;
 }
 
+    function obtenerFiguritaPorCodigoNumero(cod, num) {
+        const codigo = String(cod || "").trim().toUpperCase();
+        const numero = Number.parseInt(num, 10);
+        if (!codigo || Number.isNaN(numero)) return null;
+        return figuritas.find((f) => {
+            if (!f || String(f.codigo).toUpperCase() !== codigo) return false;
+            const partes = String(f.id || "").split(/\s+/);
+            const n = Number.parseInt(partes[1], 10);
+            return n === numero;
+        }) || null;
+    }
+
+    function aplicarEscaneoFigurita(cod, num) {
+        if (!requiereSesionParaEditar()) return false;
+        const fig = obtenerFiguritaPorCodigoNumero(cod, num);
+        if (!fig) return false;
+        return agregarUnaFiguritaPorCodigo(cod, num);
+    }
+
+    function agregarUnaFiguritaPorCodigo(cod, num) {
+        if (!requiereSesionParaEditar()) return false;
+        const fig = obtenerFiguritaPorCodigoNumero(cod, num);
+        if (!fig) return false;
+        if (fig.estado === "faltan") fig.estado = "tengo";
+        else fig.cantidad++;
+        renderMejorado();
+        if (typeof guardarDatos === "function") guardarDatos();
+        programarRefrescoSuave();
+        return true;
+    }
 // ESTA FUNCIÓN TAMBIÉN CAMBIA PARA SER MÁS FLEXIBLE
 function ejecutarCambioVoz(p1, n1, p2, n2) {
     if (!requiereSesionParaEditar()) return;
@@ -3184,6 +3332,7 @@ function ejecutarCambioVoz(p1, n1, p2, n2) {
 
             renderMejorado();
             if(typeof guardarDatos === "function") guardarDatos();
+            programarRefrescoSuave();
 
             Swal.fire({
                 title: '¡Cambio Exitoso!',
