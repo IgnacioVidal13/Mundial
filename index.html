@@ -913,15 +913,15 @@
         <img id="copa" src="copa.png" alt="Trofeo">
     </div>
 
-    <div class="busqueda-container">
+    <div id="busqueda-wrap" class="busqueda-container">
         <input type="text" id="busqueda" placeholder="Código de país (ej: ARG)...">
         <button id="btnBuscar" onclick="buscarPais()">Buscar</button>
     </div>
-    <div class="voz-actions">
+    <div id="voz-actions-wrap" class="voz-actions">
         <button type="button" class="btn-voz-cambio" onclick="activarVozCambio()" title="Cambio por voz: decí 'ARG 13 por BRA 05'">Cambiar por voz</button>
         <button type="button" class="btn-voz-agregar" onclick="activarVozAgregar()" title="Alta por voz: decí 'ARG 13' o 'agregar ARG 13'">Agregar por voz</button>
     </div>
-    <div class="codigo-agregar-row">
+    <div id="codigo-agregar-wrap" class="codigo-agregar-row">
         <input type="text" id="codigo-figurita-input" placeholder="Código de figurita (ej: ARG 13)" autocomplete="off">
         <button type="button" onclick="agregarFiguritaDesdeCodigo()">Agregar</button>
     </div>
@@ -3513,6 +3513,10 @@
             document.getElementById(id).classList.add("hidden");
         });
         document.getElementById(seccion).classList.remove("hidden");
+        const soloEnTodas = seccion === "todas";
+        document.getElementById("voz-actions-wrap")?.classList.toggle("hidden", !soloEnTodas);
+        document.getElementById("codigo-agregar-wrap")?.classList.toggle("hidden", !soloEnTodas);
+        document.getElementById("busqueda-wrap")?.classList.toggle("hidden", seccion === "amigos");
         if (seccion === "amigos") {
             void cargarAmigos();
             if (typeof generarInterfazCompartir === "function") void generarInterfazCompartir();
