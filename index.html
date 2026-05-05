@@ -883,6 +883,30 @@
             ]
         },
         {
+            tag: "Voz",
+            title: "Cambiar por voz",
+            body: [
+                "Usá el botón <strong>Cambiar por voz</strong> para registrar un intercambio directo entre dos figuritas.",
+                "Formato recomendado: <strong>ARG 13 por BRA 05</strong>.",
+                "Para las FWC podés decir <strong>mundial</strong> + número (por ejemplo: mundial 05).",
+                "Para el resto también podés decir el nombre completo del país + número (por ejemplo: argentina 13 por brasil 5).",
+                "La primera figurita es la que das; la segunda es la que recibís.",
+                "Si la primera no está en tu álbum como disponible, el cambio no se aplica."
+            ]
+        },
+        {
+            tag: "Voz",
+            title: "Agregar por voz",
+            body: [
+                "Usá el botón <strong>Agregar por voz</strong> para cargar una figurita puntual.",
+                "Formato recomendado: <strong>ARG 13</strong> o <strong>agregar ARG 13</strong>.",
+                "Para FWC también podés decir <strong>mundial</strong> + número (por ejemplo: agregar mundial 12).",
+                "Para el resto podés usar nombre completo del país + número (por ejemplo: agregar argentina 13).",
+                "Si te faltaba, queda marcada como pegada.",
+                "Si ya la tenías, suma una repetida."
+            ]
+        },
+        {
             tag: "Intercambios",
             title: "Cómo se compara con un amigo",
             body: [
@@ -1125,26 +1149,6 @@
         });
     }
 
-    function onboardingKeyForUser(email) {
-        return `mlm_onboarding_visto_${String(email || "").trim().toLowerCase()}`;
-    }
-
-    function onboardingYaVisto(email) {
-        try {
-            return localStorage.getItem(onboardingKeyForUser(email)) === "1";
-        } catch (error) {
-            return false;
-        }
-    }
-
-    function marcarOnboardingVisto(email) {
-        try {
-            localStorage.setItem(onboardingKeyForUser(email), "1");
-        } catch (error) {
-            console.warn("marcarOnboardingVisto:", error);
-        }
-    }
-
     function renderFlashcardOnboarding(idx) {
         const card = ONBOARDING_FLASHCARDS[idx] || ONBOARDING_FLASHCARDS[0];
         return `
@@ -1165,15 +1169,14 @@
 
     async function mostrarFlashcardsPostLogin(email) {
         const clave = String(email || usuarioActual || "").trim().toLowerCase();
-        if (!clave || onboardingYaVisto(clave)) return;
+        if (!clave) return;
         return new Promise((resolve) => {
             let cerrado = false;
-            const cerrar = (marcar = true) => {
+            const cerrar = () => {
                 if (cerrado) return;
                 cerrado = true;
-                if (marcar) marcarOnboardingVisto(clave);
                 Swal.close();
-                resolve(marcar);
+                resolve(true);
             };
             let indice = 0;
             Swal.fire({
@@ -1213,7 +1216,7 @@
                         if (btnNext) btnNext.textContent = indice === ONBOARDING_FLASHCARDS.length - 1 ? "Empezar" : "Siguiente";
                     };
 
-                    if (btnSkip) btnSkip.onclick = () => cerrar(true);
+                    if (btnSkip) btnSkip.onclick = () => cerrar();
                     if (btnPrev) btnPrev.onclick = () => {
                         if (indice > 0) {
                             indice--;
@@ -1222,7 +1225,7 @@
                     };
                     if (btnNext) btnNext.onclick = () => {
                         if (indice >= ONBOARDING_FLASHCARDS.length - 1) {
-                            cerrar(true);
+                            cerrar();
                             return;
                         }
                         indice++;
@@ -1231,10 +1234,10 @@
                     pintar();
                 },
                 willClose: () => {
-                    if (!cerrado) cerrar(true);
+                    if (!cerrado) cerrar();
                 }
             }).then(() => {
-                if (!cerrado) cerrar(true);
+                if (!cerrado) cerrar();
             });
         });
     }
@@ -2306,52 +2309,135 @@
         return String(id || "").split(/\s+/)[0] || "";
     }
 
-    function prepararSugerenciaPedido(cruce) {
+    function numeroDeFigurita(id) {
+        const n = parseInt(String(id || "").split(/\s+/)[1], 10);
+        return Number.isNaN(n) ? null : n;
+    }
+
+    function calidadFigurita(id) {
+        const cod = codigoDeFigurita(id);
+        const num = numeroDeFigurita(id);
+        if (!cod || num == null) return "normal";
+        if (cod === "FWC") return "escudo";
+        if (num === 1) return "escudo";
+        if (num === 13) return "formacion";
+        return "normal";
+    }
+
+    function preferenciaDarInfo(id, favoritasAmigoSet = null) {
+        const fig = figuritas.find((f) => f.id === id);
+        return {
+            id,
+            cod: codigoDeFigurita(id),
+            calidad: calidadFigurita(id),
+            favorita: !!(fig && fig.favorite),
+            favoritaAmigo: !!(favoritasAmigoSet && favoritasAmigoSet.has(String(id || "").toUpperCase()))
+        };
+    }
+
+    function preferenciaPedirInfo(id) {
+        const fig = figuritas.find((f) => f.id === id);
+        return {
+            id,
+            cod: codigoDeFigurita(id),
+            calidad: calidadFigurita(id),
+            favorita: !!(fig && fig.favorite)
+        };
+    }
+
+    function scoreParIntercambio(dar, pedir, ctx) {
+        let s = 0;
+        const pedirEspecial = pedir.calidad === "escudo" || pedir.calidad === "formacion";
+        const darEspecial = dar.calidad === "escudo" || dar.calidad === "formacion";
+        const mismaCalidad = dar.calidad === pedir.calidad;
+        if (ctx && ctx.strictSpecialMatch && (pedirEspecial || darEspecial) && !mismaCalidad) return -Infinity;
+
+        // Prioridad extra: si le das una favorita suya, mejor canjear por tu favorita o por escudo.
+        if (dar.favoritaAmigo && pedir.favorita && mismaCalidad) s += 3000000;
+        else if (dar.favoritaAmigo && pedir.calidad === "escudo" && mismaCalidad) s += 1500000;
+        else if (dar.favoritaAmigo) s += 200000;
+
+        if (pedir.favorita) s += 1000000; // 1) recibir favoritas
+        if (!dar.favorita) s += 100000;   // 1) para dar: evitar favoritas
+
+        // 2) calidad: emparejar siempre por misma calidad; penalizar fuerte el descalce en especiales.
+        if (mismaCalidad) s += 70000;
+        else s -= 60000;
+        if (pedirEspecial && !mismaCalidad) s -= 500000;
+        if (darEspecial && pedir.calidad === "normal") s -= 50000;
+        if (darEspecial && pedirEspecial && mismaCalidad) s += 25000;
+
+        if (dar.cod === pedir.cod) s += 1000; // 3) mismo pais
+        if (ctx && ctx.preferirRecibirEscudos && pedir.calidad === "escudo") s += 9000;
+        s += Math.floor(Math.random() * 50);  // 4) desempate azar
+        return s;
+    }
+
+    function prepararSugerenciaPedido(cruce, favoritasAmigoSet = new Set()) {
         const totalObjetivo = intercambioMinimo(cruce.yoLeSirvo, cruce.elMeSirve);
-        const favoritos = figuritas
-            .filter((f) => f.favorite && String(f.estado).toLowerCase() !== "tengo")
-            .map((f) => f.id);
-        const favoritosSet = new Set(favoritos);
-        const paisesQueDoy = [];
-        const paisesSet = new Set();
-        cruce.yoLeSirvo.forEach((item) => {
-            const cod = codigoDeFigurita(item.id);
-            if (!paisesSet.has(cod)) {
-                paisesSet.add(cod);
-                paisesQueDoy.push(cod);
+        const disponiblesDar = Array.from(new Map(cruce.yoLeSirvo.map((item) => [item.id, item])).values()).map((x) => preferenciaDarInfo(x.id, favoritasAmigoSet));
+        const disponiblesPedir = Array.from(new Map(cruce.elMeSirve.map((item) => [item.id, item])).values()).map((x) => preferenciaPedirInfo(x.id));
+        const escudosDisponiblesDar = disponiblesDar.filter((x) => x.calidad === "escudo").length;
+        const escudosDisponiblesPedir = disponiblesPedir.filter((x) => x.calidad === "escudo").length;
+        const ctx = {
+            preferirRecibirEscudos: escudosDisponiblesPedir > escudosDisponiblesDar
+        };
+        const usadosDar = new Set();
+        const usadosPedir = new Set();
+        const darElegidos = [];
+        const pedirElegidos = [];
+        const favoritasDisponiblesRecibir = disponiblesPedir.filter((x) => x.favorita).length;
+        const favoritasDisponiblesAmigo = disponiblesDar.filter((x) => x.favoritaAmigo).length;
+
+        function elegirMejorPar(strictSpecialMatch) {
+            let mejorPar = null;
+            let mejorScore = -Infinity;
+            for (const d of disponiblesDar) {
+                if (usadosDar.has(d.id)) continue;
+                for (const p of disponiblesPedir) {
+                    if (usadosPedir.has(p.id)) continue;
+                    const sc = scoreParIntercambio(d, p, { ...ctx, strictSpecialMatch });
+                    if (sc > mejorScore) {
+                        mejorScore = sc;
+                        mejorPar = { d, p };
+                    }
+                }
             }
-        });
-        const elegibles = Array.from(new Map(cruce.elMeSirve.map((item) => [item.id, item])).values()).map((item) => ({
-            id: item.id,
-            favorita: favoritosSet.has(item.id),
-            cod: codigoDeFigurita(item.id),
-            paisPrioritario: paisesSet.has(codigoDeFigurita(item.id))
-        }));
-        const favoritosCandidatos = elegibles.filter((item) => item.favorita);
-        const restantes = elegibles.filter((item) => !item.favorita);
-        restantes.sort((a, b) => {
-            const pa = a.paisPrioritario ? paisesQueDoy.indexOf(a.cod) : Number.POSITIVE_INFINITY;
-            const pb = b.paisPrioritario ? paisesQueDoy.indexOf(b.cod) : Number.POSITIVE_INFINITY;
-            if (pa !== pb) return pa - pb;
-            if (a.paisPrioritario !== b.paisPrioritario) return a.paisPrioritario ? -1 : 1;
-            return a.id.localeCompare(b.id);
-        });
-        const paisPrioritarios = restantes.filter((item) => item.paisPrioritario);
-        const otros = restantes.filter((item) => !item.paisPrioritario);
-        for (let i = otros.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [otros[i], otros[j]] = [otros[j], otros[i]];
+            if (!mejorPar || !Number.isFinite(mejorScore)) return null;
+            return mejorPar;
         }
-        const pool = [...favoritosCandidatos, ...paisPrioritarios, ...otros];
-        const elegidos = [];
-        for (const item of pool) {
-            if (elegidos.length >= totalObjetivo) break;
-            elegidos.push(item);
+
+        for (let i = 0; i < totalObjetivo; i++) {
+            let mejorPar = elegirMejorPar(true);
+            if (!mejorPar) mejorPar = elegirMejorPar(false);
+            if (!mejorPar) break;
+            usadosDar.add(mejorPar.d.id);
+            usadosPedir.add(mejorPar.p.id);
+            darElegidos.push(mejorPar.d);
+            pedirElegidos.push(mejorPar.p);
         }
+
+        const escudosDar = darElegidos.filter((x) => x.calidad === "escudo").length;
+        const escudosPedir = pedirElegidos.filter((x) => x.calidad === "escudo").length;
+        const favoritasRecibidas = pedirElegidos.filter((x) => x.favorita).length;
+        const favoritasSuyasEntregadas = darElegidos.filter((x) => x.favoritaAmigo).length;
+        const alertaBrillantes = escudosDisponiblesDar > escudosDisponiblesPedir && escudosDar > escudosPedir
+            ? "Ojo, estás dando más brillantes que las que recibís."
+            : "";
+
         return {
             objetivo: totalObjetivo,
-            elegidos,
-            texto: formatearPedidoRecomendado(elegidos)
+            darElegidos,
+            pedirElegidos,
+            textoDar: formatearPedidoRecomendado(darElegidos),
+            textoPedir: formatearPedidoRecomendado(pedirElegidos),
+            escudosDar,
+            escudosPedir,
+            alertaBrillantes,
+            favoritasRecibidas,
+            favoritasSuyasEntregadas,
+            favoritasDisponiblesRecibir,
+            favoritasDisponiblesAmigo
         };
     }
 
@@ -2367,6 +2453,14 @@
             .sort()
             .map((cod) => `${cod}: ${porCodigo[cod].join(", ")}`)
             .join("\n");
+    }
+
+    function favoritasAmigoDesdePayload(payload) {
+        const p = String(payload || "");
+        if (!p || !Array.isArray(amigosCache)) return new Set();
+        const row = amigosCache.find((r) => String(r && r.payload ? r.payload : "") === p);
+        if (!row || !Array.isArray(row.favorites)) return new Set();
+        return new Set(row.favorites.map((id) => String(id || "").trim().toUpperCase()).filter(Boolean));
     }
 
     let amigosCache = [];
@@ -2525,10 +2619,8 @@
 
     async function renderAmigos(rows) {
         const lista = document.getElementById("amigos-lista");
-        const detalle = document.getElementById("amigo-detalle");
         if (!lista) return;
         lista.innerHTML = "";
-        if (detalle) detalle.classList.add("hidden");
         if (!rows.length) {
             lista.textContent = "Todavia no agregaste amigos.";
             return;
@@ -2657,10 +2749,10 @@
         if (p) p.classList.remove("visible");
     }
 
-    function mostrarResultadoCruce(nombreAmigo, cruce) {
+    function mostrarResultadoCruce(nombreAmigo, cruce, favoritasAmigoSet = new Set()) {
         const panel = document.getElementById("panel-cruce-intercambio");
         if (!panel) return;
-        const sugerencia = prepararSugerenciaPedido(cruce);
+        const sugerencia = prepararSugerenciaPedido(cruce, favoritasAmigoSet);
         document.getElementById("cruce-titulo").textContent = "Cruce automático (repetidas ↔ faltantes)";
         document.getElementById("cruce-subtitulo").textContent =
             `Comparando tu álbum con el de: ${nombreAmigo}. ` +
@@ -2668,13 +2760,19 @@
         document.getElementById("cruce-yo-le-doy").textContent = formatearListaCruce(cruce.yoLeSirvo);
         document.getElementById("cruce-el-me-da").textContent = formatearListaCruce(cruce.elMeSirve);
         document.getElementById("cruce-resumen").textContent =
-            `Podés ofrecerle ${cruce.yoLeSirvo.length} figurita(s) · Intercambio recomendado: Pedí ${sugerencia.texto}`;
+            `Podés ofrecerle ${cruce.yoLeSirvo.length} figurita(s) · Intercambio recomendado: Vos das ${sugerencia.textoDar} · Pedís ${sugerencia.textoPedir}`;
         const sugerenciaEl = document.getElementById("cruce-sugerencia");
         if (sugerenciaEl) {
             sugerenciaEl.textContent =
-                `Intercambio recomendado: Pedí ${sugerencia.texto}\n` +
-                `Favoritas priorizadas: ${sugerencia.elegidos.filter((i) => i.favorita).length}`;
-            sugerenciaEl.classList.toggle("hidden", !sugerencia.elegidos.length);
+                `Intercambio recomendado:\n` +
+                `Vos das: ${sugerencia.textoDar}\n` +
+                `Pedís: ${sugerencia.textoPedir}\n` +
+                `Favoritas tuyas disponibles para pedir: ${sugerencia.favoritasDisponiblesRecibir}\n` +
+                `Favoritas suyas disponibles para ofrecerle: ${sugerencia.favoritasDisponiblesAmigo}\n` +
+                `Favoritas tuyas recibidas: ${sugerencia.favoritasRecibidas}\n` +
+                `Favoritas suyas que le ofrecés: ${sugerencia.favoritasSuyasEntregadas}` +
+                (sugerencia.alertaBrillantes ? `\n${sugerencia.alertaBrillantes}` : "");
+            sugerenciaEl.classList.toggle("hidden", !sugerencia.pedirElegidos.length);
         }
         panel.classList.add("visible");
         panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
@@ -2732,17 +2830,19 @@
 
         const miBytes = albumBytesFromFiguritas(figuritas);
         const cruce = cruzarAlbumBytes(miBytes, decoded.albumBytes, ids);
-        mostrarResultadoCruce(decoded.displayName, cruce);
-        const sugerencia = prepararSugerenciaPedido(cruce);
+        const favoritasAmigoSet = favoritasAmigoDesdePayload(payload);
+        mostrarResultadoCruce(decoded.displayName, cruce, favoritasAmigoSet);
+        const sugerencia = prepararSugerenciaPedido(cruce, favoritasAmigoSet);
 
         Swal.fire({
             title: "Cruce listo",
-            html: `<p style="margin:0"><b>Podés dar:</b> ${cruce.yoLeSirvo.length} · <b>Intercambio recomendado:</b> Pedí ${sugerencia.texto}<br><b>Favoritas en la sugerencia:</b> ${sugerencia.elegidos.filter((i) => i.favorita).length}</p>`,
+            html: `<p style="margin:0"><b>Podés dar:</b> ${cruce.yoLeSirvo.length} · <b>Intercambio recomendado:</b><br>Vos das: ${sugerencia.textoDar}<br>Pedís: ${sugerencia.textoPedir}<br><b>Favoritas tuyas disponibles:</b> ${sugerencia.favoritasDisponiblesRecibir}<br><b>Favoritas suyas disponibles:</b> ${sugerencia.favoritasDisponiblesAmigo}<br><b>Favoritas tuyas recibidas:</b> ${sugerencia.favoritasRecibidas}<br><b>Favoritas suyas que le ofrecés:</b> ${sugerencia.favoritasSuyasEntregadas}${sugerencia.alertaBrillantes ? `<br><b>${sugerencia.alertaBrillantes}</b>` : ""}</p>`,
             icon: "success",
             toast: true,
             position: "top-end",
-            timer: 4000,
+            timer: 0,
             showConfirmButton: false,
+            showCloseButton: true,
             background: "#1a1a1a",
             color: "#ffffff"
         });
@@ -2933,6 +3033,7 @@ document.getElementById("amigo-codigo-input")?.addEventListener("keydown", e => 
 
     let _refreshQrTimer;
     let _refreshUiTimer;
+    let _qrRenderSeq = 0;
     function scheduleRefreshQR() {
         if (typeof usuarioActual === "undefined" || !usuarioActual) return;
         if (vistaActual !== "amigos") return;
@@ -2941,13 +3042,6 @@ document.getElementById("amigo-codigo-input")?.addEventListener("keydown", e => 
             if (typeof generarInterfazCompartir === "function") void generarInterfazCompartir();
         }, 700);
     }
-
-    document.addEventListener("click", (e) => {
-        const boton = e.target && e.target.closest ? e.target.closest("button") : null;
-        if (!boton) return;
-        if (boton.closest(".swal2-container")) return;
-        programarRefrescoSuave();
-    }, true);
 
     function renderMejorado() {
         const secciones = {
@@ -3563,6 +3657,7 @@ function limpiarQrGenerado(el) {
 }
 
 async function renderizarMiQR(sb = getSupabase(), userActual = null) {
+    const seq = ++_qrRenderSeq;
     const el = document.getElementById("qrcode");
     const codigoDisplay = document.getElementById("mi-codigo-display");
     const codigoTexto = document.getElementById("mi-codigo-texto");
@@ -3582,6 +3677,7 @@ async function renderizarMiQR(sb = getSupabase(), userActual = null) {
         console.error(e);
         return;
     }
+    if (seq !== _qrRenderSeq) return;
     if (!url) {
         return;
     }
@@ -3603,6 +3699,8 @@ async function renderizarMiQR(sb = getSupabase(), userActual = null) {
     const opts = { text: valorQr, width: 300, height: 300 };
     if (typeof QRCode.CorrectLevel !== "undefined") opts.correctLevel = QRCode.CorrectLevel.L;
     try {
+        if (seq !== _qrRenderSeq) return;
+        limpiarQrGenerado(el);
         new QRCode(el, opts);
     } catch (e) {
         Swal.fire({

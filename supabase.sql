@@ -581,6 +581,15 @@ as $$
       'username', coalesce(p.username, 'Amigo'),
       'code', i.code,
       'payload', i.payload,
+      'favorites', coalesce(
+        (
+          select jsonb_agg(elem ->> 'id')
+          from jsonb_array_elements(pa.data) as elem
+          where elem ? 'favorite'
+            and lower(coalesce(elem ->> 'favorite', 'false')) = 'true'
+        ),
+        '[]'::jsonb
+      ),
       'updated_at', i.updated_at,
       'expires_at', i.expires_at
     )
@@ -588,6 +597,7 @@ as $$
   ), '[]'::jsonb)
   from public.album_amigos a
   left join public.profiles p on p.id = a.friend_id
+  left join public.progreso_album pa on pa.id = a.friend_id
   left join public.album_intercambios i
     on i.owner_id = a.friend_id
   and i.expires_at > now()
