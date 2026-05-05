@@ -934,6 +934,18 @@
     }
 
     const swalBase = { background: "#1a1a1a", color: "#ffffff", confirmButtonColor: "#2196F3" };
+    const MAX_REPETIDAS_POR_FIGURITA = 10;
+    function toastRapido(mensaje, icono = "success") {
+        Swal.fire({
+            title: mensaje,
+            icon: icono,
+            toast: true,
+            position: "top-end",
+            timer: 1200,
+            showConfirmButton: false,
+            ...swalBase
+        });
+    }
     const ONBOARDING_FLASHCARDS = [
         {
             tag: "Figuritas",
@@ -2842,12 +2854,13 @@
         if (!dato) {
             return Swal.fire({ title: "Codigo invalido", text: "Pega algo como ARG 13.", icon: "warning", ...swalBase });
         }
-        const ok = agregarUnaFiguritaPorCodigo(dato.cod, dato.num);
-        if (!ok) {
+        const res = agregarUnaFiguritaPorCodigo(dato.cod, dato.num);
+        if (!res || !res.ok) {
+            if (res && res.reason === "max_repes") return;
             return Swal.fire({ title: "No encontrado", text: `No ubique ${dato.cod} ${dato.num}.`, icon: "error", ...swalBase });
         }
         if (input) input.value = "";
-        return Swal.fire({ title: "Figurita agregada", text: `${dato.cod} ${dato.num}`, icon: "success", timer: 1600, showConfirmButton: false, ...swalBase });
+        return;
     }
 
     async function eliminarAmigo(friendId, nombre) {
@@ -3074,21 +3087,14 @@
 
             figDoy.cantidad = Math.max(0, Number(figDoy.cantidad || 0) - 1);
             if (figPido.estado === "faltan") figPido.estado = "tengo";
-            else figPido.cantidad = Number(figPido.cantidad || 0) + 1;
+            else figPido.cantidad = Math.min(MAX_REPETIDAS_POR_FIGURITA, Number(figPido.cantidad || 0) + 1);
         }
 
         renderMejorado();
         guardarDatos();
         programarRefrescoSuave();
 
-        await Swal.fire({
-            title: "Intercambio confirmado",
-            text: `Se aplicaron ${total} figurita(s) en tu álbum.`,
-            icon: "success",
-            timer: 1800,
-            showConfirmButton: false,
-            ...swalBase
-        });
+        toastRapido(`Intercambio aplicado: ${total} figurita(s)`);
 
         if (notificarAmigo) {
             await crearOfertaIntercambioPendiente(dar.slice(0, total), pedir.slice(0, total));
@@ -3906,18 +3912,10 @@ if (recognition) recognition.onresult = (event) => {
             .replace(/\b(figurita|figu|figura|la)\b/gi, "")
             .trim();
         const dato = extraerDatosPro(limpio || vozOriginal);
-        if (dato && agregarUnaFiguritaPorCodigo(dato.cod, dato.num)) {
-            Swal.fire({
-                title: "Figurita agregada",
-                text: `${dato.cod} ${dato.num}`,
-                icon: "success",
-                toast: true,
-                position: "top-end",
-                timer: 1800,
-                showConfirmButton: false,
-                ...swalBase
-            });
+        const resAgregar = dato ? agregarUnaFiguritaPorCodigo(dato.cod, dato.num) : { ok: false };
+        if (resAgregar && resAgregar.ok) {
         } else {
+            if (resAgregar && resAgregar.reason === "max_repes") return;
             Swal.fire({
                 title: "No entendí la figurita",
                 text: "Decí algo como ARG 13.",
@@ -4030,19 +4028,26 @@ if (recognition) recognition.onresult = (event) => {
         if (!requiereSesionParaEditar()) return false;
         const fig = obtenerFiguritaPorCodigoNumero(cod, num);
         if (!fig) return false;
-        return agregarUnaFiguritaPorCodigo(cod, num);
+        return agregarUnaFiguritaPorCodigo(cod, num).ok;
     }
 
     function agregarUnaFiguritaPorCodigo(cod, num) {
         if (!requiereSesionParaEditar()) return false;
         const fig = obtenerFiguritaPorCodigoNumero(cod, num);
-        if (!fig) return false;
+        if (!fig) return { ok: false, reason: "not_found" };
         if (fig.estado === "faltan") fig.estado = "tengo";
-        else fig.cantidad++;
+        else {
+            if (Number(fig.cantidad || 0) >= MAX_REPETIDAS_POR_FIGURITA) {
+                toastRapido(`${fig.id} llegó al máximo (${MAX_REPETIDAS_POR_FIGURITA})`, "warning");
+                return { ok: false, reason: "max_repes", id: fig.id };
+            }
+            fig.cantidad++;
+        }
         renderMejorado();
         if (typeof guardarDatos === "function") guardarDatos();
         programarRefrescoSuave();
-        return true;
+        toastRapido(`${fig.id} agregada`);
+        return { ok: true, id: fig.id };
     }
 // ESTA FUNCIÓN TAMBIÉN CAMBIA PARA SER MÁS FLEXIBLE
 function ejecutarCambioVoz(p1, n1, p2, n2) {
@@ -4066,19 +4071,14 @@ function ejecutarCambioVoz(p1, n1, p2, n2) {
             if (figuDoy.cantidad > 0) figuDoy.cantidad--;
             else figuDoy.estado = "faltan";
 
-            figuRecibo.estado = "tengo";
+            if (figuRecibo.estado === "faltan") figuRecibo.estado = "tengo";
+            else figuRecibo.cantidad = Math.min(MAX_REPETIDAS_POR_FIGURITA, Number(figuRecibo.cantidad || 0) + 1);
 
             renderMejorado();
             if(typeof guardarDatos === "function") guardarDatos();
             programarRefrescoSuave();
 
-            Swal.fire({
-                title: '¡Cambio Exitoso!',
-                text: `${pais1} ${n1} → ${pais2} ${n2}`,
-                icon: 'success',
-                background: '#1a1a1a',
-                color: '#ffffff'
-            });
+            toastRapido(`${pais1} ${String(n1).padStart(2, "0")} → ${pais2} ${String(n2).padStart(2, "0")}`);
         } else {
             Swal.fire('Error', `No tenés a ${pais1} ${n1}`, 'error');
         }
