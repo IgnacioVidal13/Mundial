@@ -2,13 +2,56 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Mi Lista Mundialista.com</title>
+    <title>Mi Lista Mundialista | Álbum, Repetidas e Intercambio de Figuritas</title>
+    <meta name="description" content="Mi Lista Mundialista te ayuda a controlar figuritas pegadas, faltantes y repetidas, comparar con amigos y generar intercambios por código o QR.">
+    <meta name="robots" content="index, follow, max-image-preview:large">
+    <link rel="canonical" href="https://milistamundialista.dx.com.ar/">
+    <meta property="og:locale" content="es_AR">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="Mi Lista Mundialista">
+    <meta property="og:title" content="Mi Lista Mundialista | Álbum, Repetidas e Intercambio de Figuritas">
+    <meta property="og:description" content="Controlá tu álbum, gestioná repetidas y compará con amigos para intercambiar figuritas más rápido.">
+    <meta property="og:url" content="https://milistamundialista.dx.com.ar/">
+    <meta property="og:image" content="https://milistamundialista.dx.com.ar/copa.webp">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Mi Lista Mundialista">
+    <meta name="twitter:description" content="Álbum, repetidas e intercambio de figuritas con amigos.">
+    <meta name="twitter:image" content="https://milistamundialista.dx.com.ar/copa.webp">
+    <link rel="icon" type="image/webp" href="copa.webp">
+    <link rel="manifest" href="/site.webmanifest">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;700&display=swap" rel="stylesheet">
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "WebSite",
+          "name": "Mi Lista Mundialista",
+          "url": "https://milistamundialista.dx.com.ar/",
+          "inLanguage": "es-AR"
+        },
+        {
+          "@type": "Organization",
+          "name": "Mi Lista Mundialista",
+          "url": "https://milistamundialista.dx.com.ar/",
+          "logo": "https://milistamundialista.dx.com.ar/copa.webp"
+        },
+        {
+          "@type": "SoftwareApplication",
+          "name": "Mi Lista Mundialista",
+          "applicationCategory": "SportsApplication",
+          "operatingSystem": "Web",
+          "url": "https://milistamundialista.dx.com.ar/",
+          "description": "Aplicación web para controlar álbum, repetidas y cambios de figuritas entre amigos."
+        }
+      ]
+    }
+    </script>
 
     <style>
         /* --- ESTILOS BASE --- */
@@ -29,6 +72,16 @@
         }
 
         header div { color: gold; font-size: 22px; font-weight: 700; }
+        .brand-link {
+            background: transparent;
+            border: none;
+            color: gold;
+            font-size: 22px;
+            font-weight: 700;
+            cursor: pointer;
+            padding: 0;
+            font-family: inherit;
+        }
 
         nav button {
             margin-left: 10px;
@@ -518,11 +571,36 @@
         .site-footer small {
             color: rgba(255,255,255,0.72);
         }
+        .site-footer a {
+            color: #cfe7ff;
+            text-decoration: none;
+        }
+        .site-footer a:hover {
+            text-decoration: underline;
+        }
         .footer-actions {
             display: flex;
             flex-wrap: wrap;
             justify-content: flex-end;
             gap: 10px;
+        }
+        .footer-links {
+            margin-top: 8px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            font-size: 13px;
+        }
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
         }
         .btn-contacto,
         .btn-instrucciones,
@@ -804,7 +882,8 @@
 <!-- FIN DEL INICIO DE SESIÓN -->
 
 <header class="site-header">
-    <div class="brand">MI LISTA MUNDIALISTA</div>
+    <h1 class="sr-only">Mi Lista Mundialista - Álbum e intercambio de figuritas</h1>
+    <button type="button" class="brand brand-link" onclick="mostrar('todas')">MI LISTA MUNDIALISTA</button>
     <nav id="nav-app" class="hidden">
         <button class="todas" onclick="mostrar('todas')">Todas</button>
         <button class="tengo" onclick="mostrar('tengo')">Pegadas</button>
@@ -901,6 +980,9 @@
             <strong>Contacto</strong><br>
             <small>Escribí a soporte o borrá tu cuenta desde acá.</small>
             <small>© 2026 Mi Lista Mundialista™ · All rights reserved.</small>
+            <div class="footer-links">
+                <a href="/preguntas-frecuentes.html">Preguntas frecuentes</a>
+            </div>
         </div>
         <div class="footer-actions">
             <button type="button" class="btn-instrucciones" onclick="abrirInstruccionesUso()">Instrucciones de uso</button>
