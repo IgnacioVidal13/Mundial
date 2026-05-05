@@ -556,8 +556,9 @@
             box-shadow: 0 10px 24px rgba(0,0,0,0.35);
         }
         .site-footer {
-            max-width: 980px;
-            margin: 24px auto 0;
+            width: 100%;
+            max-width: none;
+            margin: 24px 0 0;
             padding: 18px 16px 30px;
             display: flex;
             align-items: center;
@@ -565,7 +566,7 @@
             gap: 12px;
             border-top: 1px solid rgba(255,215,0,0.35);
             background: #000;
-            border-radius: 10px 10px 0 0;
+            border-radius: 0;
             color: #f1f1f1;
         }
         .site-footer small {
@@ -604,6 +605,7 @@
         }
         .btn-contacto,
         .btn-instrucciones,
+        .btn-donar,
         .btn-eliminar-cuenta {
             background: #1f7ae0;
             color: #fff;
@@ -616,6 +618,10 @@
         .btn-instrucciones {
             background: #ffd700;
             color: #111;
+        }
+        .btn-donar {
+            background: #00a6ff;
+            color: #fff;
         }
         .btn-eliminar-cuenta {
             background: #b71c1c;
@@ -986,6 +992,7 @@
         </div>
         <div class="footer-actions">
             <button type="button" class="btn-instrucciones" onclick="abrirInstruccionesUso()">Instrucciones de uso</button>
+            <button type="button" class="btn-donar" onclick="abrirDonaciones()">Donar (Mercado Pago)</button>
             <button type="button" class="btn-contacto" onclick="abrirContacto()">Contactar</button>
             <button type="button" class="btn-eliminar-cuenta" onclick="eliminarCuenta()">Eliminar cuenta</button>
         </div>
@@ -1001,6 +1008,7 @@
     const SUPABASE_URL = "https://ejmztjclypvlonkvvbxy.supabase.co";
     const SUPABASE_ANON_KEY = "sb_publishable_Rmpo2vOz1dnPAy54uEq9BQ_BcNVJNNR";
     const SUPPORT_EMAIL = "contactosoportelista@gmail.com";
+    const MERCADO_PAGO_DONATION_URL = "https://link.mercadopago.com.ar/milistamundialista";
     const RECORDAR_DISPOSITIVO_KEY = "mlm_recordar_dispositivo";
 
     if (!window.Swal) {
@@ -1025,6 +1033,20 @@
             position: "top-end",
             timer: 1200,
             showConfirmButton: false,
+            ...swalBase
+        });
+    }
+
+    function abrirDonaciones() {
+        const url = String(MERCADO_PAGO_DONATION_URL || "").trim();
+        if (url) {
+            window.open(url, "_blank", "noopener,noreferrer");
+            return;
+        }
+        Swal.fire({
+            title: "Donaciones",
+            html: `Para activar el botón de donación, pegá tu link de Mercado Pago en <code>MERCADO_PAGO_DONATION_URL</code> dentro de <code>index.html</code>.`,
+            icon: "info",
             ...swalBase
         });
     }
@@ -1106,6 +1128,15 @@
                 "El botón <strong>Descargar PDF</strong> genera un resumen imprimible de tu álbum.",
                 "El QR y el código de intercambio viven en <strong>Amigos</strong>.",
                 "Compartilos para que otra persona compare o te agregue."
+            ]
+        },
+        {
+            tag: "Donaciones",
+            title: "Ayudá al mantenimiento",
+            body: [
+                "Abajo de todo tenés el botón <strong>Donar (Mercado Pago)</strong>.",
+                "La página tiene costos de mantenimiento, hosting y mejoras continuas.",
+                "Si te sirvió, cualquier colaboración ayuda a sostener el proyecto."
             ]
         }
     ];
