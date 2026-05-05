@@ -360,6 +360,72 @@
             background: #444;
             color: #fff;
         }
+        #panel-cruce-intercambio .btn-realizar-cambio {
+            margin-top: 14px;
+            margin-right: 10px;
+            padding: 10px 18px;
+            border: 1px solid #f6d365;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 700;
+            color: #1a1a1a;
+            background: linear-gradient(135deg, #ffd700 0%, #f6d365 45%, #fda085 100%);
+            box-shadow: 0 6px 16px rgba(246, 211, 101, 0.28);
+            transition: transform .12s ease, box-shadow .12s ease, filter .12s ease;
+        }
+        #panel-cruce-intercambio .btn-realizar-cambio:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 9px 20px rgba(246, 211, 101, 0.34);
+            filter: brightness(1.03);
+        }
+        #panel-cruce-intercambio .btn-realizar-cambio:active {
+            transform: translateY(0);
+            box-shadow: 0 4px 12px rgba(246, 211, 101, 0.25);
+        }
+        #contacto-flotante {
+            position: fixed;
+            right: 16px;
+            bottom: 18px;
+            width: 52px;
+            height: 52px;
+            border-radius: 50%;
+            border: 1px solid rgba(255,255,255,0.18);
+            background: #111;
+            color: #fff;
+            font-size: 24px;
+            line-height: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 9999;
+            box-shadow: 0 10px 22px rgba(0,0,0,.35);
+            transition: transform .12s ease, background .12s ease, box-shadow .12s ease;
+        }
+        #contacto-flotante #badge-mensajes {
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            min-width: 20px;
+            height: 20px;
+            padding: 0 5px;
+            border-radius: 999px;
+            background: #ff3b30;
+            color: #fff;
+            font-size: 12px;
+            font-weight: 700;
+            line-height: 20px;
+            text-align: center;
+            border: 1px solid rgba(255,255,255,.45);
+        }
+        #contacto-flotante:hover {
+            background: #1d1d1d;
+            transform: translateY(-1px);
+            box-shadow: 0 12px 26px rgba(0,0,0,.42);
+        }
+        #contacto-flotante:active {
+            transform: translateY(0);
+        }
 
         #amigos {
             max-width: 980px;
@@ -824,6 +890,7 @@
                 </div>
             </div>
             <div class="resumen-cruce" id="cruce-resumen"></div>
+            <button type="button" class="btn-realizar-cambio" onclick="abrirPopupRealizarIntercambio()">Realizar cambio</button>
             <button type="button" class="btn-cerrar-cruce" onclick="ocultarPanelCruce()">Ocultar panel</button>
         </div>
         <div id="amigos-lista"></div>
@@ -841,6 +908,10 @@
             <button type="button" class="btn-eliminar-cuenta" onclick="eliminarCuenta()">Eliminar cuenta</button>
         </div>
     </footer>
+    <button type="button" id="contacto-flotante" aria-label="Abrir mensajes" title="Mensajes" onclick="abrirBandejaMensajes()">
+        ✉
+        <span id="badge-mensajes" class="hidden">0</span>
+    </button>
     </div>
 </main>
 
@@ -913,6 +984,16 @@
                 "En <strong>Amigos</strong> ves tu código y tu QR para compartir.",
                 "Pegar el código de otra persona abre el cruce automático.",
                 "El panel te dice qué repetidas tuyas le sirven y cuáles de él te sirven a vos."
+            ]
+        },
+        {
+            tag: "Intercambios",
+            title: "Realizar cambio (popup)",
+            body: [
+                "Después de comparar, tocá <strong>Realizar cambio</strong> en el panel de cruce.",
+                "Se abre un popup con dos listas: <strong>Vos das</strong> y <strong>Vos pedís</strong>, cada figurita con casilla tildable.",
+                "La selección arranca con la sugerencia automática, pero podés cambiarla libremente.",
+                "Al tocar <strong>Confirmar intercambio</strong>, se descuentan tus repetidas dadas y se agregan las que recibís."
             ]
         },
         {
@@ -2022,6 +2103,7 @@
         cerrarLoginOverlay();
         await cargarDatosUsuario(sb, user);
         aplicarSesionActivaUI(true);
+        iniciarPollingOfertas();
         setTimeout(() => {
             if (typeof intentarCruceDesdeURL === "function") void intentarCruceDesdeURL();
         }, 0);
@@ -2044,6 +2126,10 @@
         nombreVisibleUsuario = "";
         supabaseUserActual = null;
         amigosCache = [];
+        ofertasPendientesCache = [];
+        if (_pollOfertasTimer) clearInterval(_pollOfertasTimer);
+        _pollOfertasTimer = null;
+        actualizarBadgeMensajes();
         cerrarLoginOverlay();
         inicializar();
         renderMejorado();
@@ -2267,15 +2353,23 @@
         return decodeAlbumPayloadSync(p);
     }
 
-    function cruzarAlbumBytes(miBytes, suBytes, ids) {
+    function cruzarAlbumBytes(miBytes, suBytes, ids, misFiguritas = null) {
         const yoLeSirvo = [];
         const elMeSirve = [];
         const n = Math.min(miBytes.length, suBytes.length, ids.length);
+        const byIdLocal = Array.isArray(misFiguritas)
+            ? new Map(misFiguritas.map((f) => [String(f.id || "").toUpperCase(), f]))
+            : null;
         for (let i = 0; i < n; i++) {
             const mb = miBytes[i];
             const sb = suBytes[i];
-            if (mb >= 2 && sb === 0) yoLeSirvo.push({ id: ids[i], repes: 1 });
-            if (sb >= 2 && mb === 0) elMeSirve.push({ id: ids[i], repes: 1 });
+            const id = ids[i];
+            const figLocal = byIdLocal ? byIdLocal.get(String(id || "").toUpperCase()) : null;
+            const yoTengoRepeLocal = !!(figLocal && String(figLocal.estado).toLowerCase() === "tengo" && Number(figLocal.cantidad || 0) > 0);
+            const yoLoTengoFaltanteLocal = !!(figLocal && String(figLocal.estado).toLowerCase() !== "tengo");
+
+            if ((yoTengoRepeLocal || mb >= 2) && sb === 0) yoLeSirvo.push({ id, repes: 1 });
+            if (sb >= 2 && (yoLoTengoFaltanteLocal || mb === 0)) elMeSirve.push({ id, repes: 1 });
         }
         return { yoLeSirvo, elMeSirve };
     }
@@ -2353,9 +2447,9 @@
         if (ctx && ctx.strictSpecialMatch && (pedirEspecial || darEspecial) && !mismaCalidad) return -Infinity;
 
         // Prioridad extra: si le das una favorita suya, mejor canjear por tu favorita o por escudo.
-        if (dar.favoritaAmigo && pedir.favorita && mismaCalidad) s += 3000000;
-        else if (dar.favoritaAmigo && pedir.calidad === "escudo" && mismaCalidad) s += 1500000;
-        else if (dar.favoritaAmigo) s += 200000;
+        if (dar.favoritaAmigo && pedir.favorita && mismaCalidad) s += 3500000;
+        else if (dar.favoritaAmigo && pedir.calidad === "escudo" && mismaCalidad) s += 2000000;
+        else if (dar.favoritaAmigo) s += 1200000;
 
         if (pedir.favorita) s += 1000000; // 1) recibir favoritas
         if (!dar.favorita) s += 100000;   // 1) para dar: evitar favoritas
@@ -2407,7 +2501,37 @@
             return mejorPar;
         }
 
+        function elegirMejorParParaPedirObjetivo(pedirObjetivo, strictSpecialMatch) {
+            let mejorPar = null;
+            let mejorScore = -Infinity;
+            for (const d of disponiblesDar) {
+                if (usadosDar.has(d.id)) continue;
+                const sc = scoreParIntercambio(d, pedirObjetivo, { ...ctx, strictSpecialMatch });
+                if (sc > mejorScore) {
+                    mejorScore = sc;
+                    mejorPar = { d, p: pedirObjetivo };
+                }
+            }
+            if (!mejorPar || !Number.isFinite(mejorScore)) return null;
+            return mejorPar;
+        }
+
+        // 0) Prioridad dura: intentar incluir favoritas del lado "pedís" primero.
+        const favoritasPedir = disponiblesPedir.filter((p) => p.favorita);
+        for (const pf of favoritasPedir) {
+            if (darElegidos.length >= totalObjetivo) break;
+            if (usadosPedir.has(pf.id)) continue;
+            let mejorPar = elegirMejorParParaPedirObjetivo(pf, true);
+            if (!mejorPar) mejorPar = elegirMejorParParaPedirObjetivo(pf, false);
+            if (!mejorPar) continue;
+            usadosDar.add(mejorPar.d.id);
+            usadosPedir.add(mejorPar.p.id);
+            darElegidos.push(mejorPar.d);
+            pedirElegidos.push(mejorPar.p);
+        }
+
         for (let i = 0; i < totalObjetivo; i++) {
+            if (darElegidos.length >= totalObjetivo) break;
             let mejorPar = elegirMejorPar(true);
             if (!mejorPar) mejorPar = elegirMejorPar(false);
             if (!mejorPar) break;
@@ -2455,12 +2579,18 @@
             .join("\n");
     }
 
-    function favoritasAmigoDesdePayload(payload) {
+    function favoritasAmigoDesdePayload(payload, displayName = "") {
         const p = String(payload || "");
-        if (!p || !Array.isArray(amigosCache)) return new Set();
-        const row = amigosCache.find((r) => String(r && r.payload ? r.payload : "") === p);
-        if (!row || !Array.isArray(row.favorites)) return new Set();
-        return new Set(row.favorites.map((id) => String(id || "").trim().toUpperCase()).filter(Boolean));
+        if (!Array.isArray(amigosCache)) return new Set();
+        const row = p ? amigosCache.find((r) => String(r && r.payload ? r.payload : "") === p) : null;
+        let src = row;
+        if (!src && displayName) {
+            const dn = String(displayName).trim().toLowerCase();
+            const matches = amigosCache.filter((r) => String(r && r.username ? r.username : "").trim().toLowerCase() === dn);
+            if (matches.length === 1) src = matches[0];
+        }
+        if (!src || !Array.isArray(src.favorites)) return new Set();
+        return new Set(src.favorites.map((id) => String(id || "").trim().toUpperCase()).filter(Boolean));
     }
 
     let amigosCache = [];
@@ -2749,10 +2879,347 @@
         if (p) p.classList.remove("visible");
     }
 
+    let ultimoCruceContexto = null;
+    let ofertasPendientesCache = [];
+    let _pollOfertasTimer = null;
+
+    function idsUnicosCruce(items) {
+        return Array.from(new Map((items || []).map((x) => [x.id, x])).values()).map((x) => x.id);
+    }
+
+    function etiquetaFiguritaPorId(id) {
+        const [cod, num] = String(id || "").split(/\s+/);
+        return `${String(cod || "").toUpperCase()} ${num || ""}`.trim();
+    }
+
+    function agruparIdsPorPais(ids) {
+        const map = {};
+        (ids || []).forEach((id) => {
+            const [cod, num] = String(id || "").split(/\s+/);
+            const c = String(cod || "").toUpperCase();
+            const n = String(num || "").padStart(2, "0");
+            if (!c || !n) return;
+            if (!map[c]) map[c] = [];
+            map[c].push(`${c} ${n}`);
+        });
+        Object.keys(map).forEach((c) => {
+            map[c].sort((a, b) => {
+                const na = parseInt(a.split(/\s+/)[1], 10);
+                const nb = parseInt(b.split(/\s+/)[1], 10);
+                return na - nb;
+            });
+        });
+        return map;
+    }
+
+    function renderListaAgrupadaCheckbox(ids, cls, seleccionados) {
+        const grupos = agruparIdsPorPais(ids);
+        const paises = Object.keys(grupos).sort();
+        if (!paises.length) return "<small>(sin opciones)</small>";
+        return `
+            <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px">
+                ${paises.map((pais) => `
+                    <div style="border:1px solid rgba(255,255,255,.12);border-radius:7px;padding:4px 6px">
+                        <div style="font-weight:700;font-size:11px;opacity:.9;margin-bottom:3px">${pais}</div>
+                        ${grupos[pais].map((id) => `<label style="display:block;margin:2px 0;font-size:12px"><input type="checkbox" class="${cls}" data-id="${id.replace(/"/g, "&quot;")}" ${seleccionados.has(id) ? "checked" : ""}> ${id}</label>`).join("")}
+                    </div>
+                `).join("")}
+            </div>
+        `;
+    }
+
+    function renderListaAgrupadaSoloTexto(ids) {
+        const grupos = agruparIdsPorPais(ids);
+        const paises = Object.keys(grupos).sort();
+        if (!paises.length) return "<small>(ninguna)</small>";
+        return `
+            <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px">
+                ${paises.map((pais) => `
+                    <div style="border:1px solid rgba(255,255,255,.1);border-radius:7px;padding:4px 6px">
+                        <div style="font-weight:700;font-size:11px;opacity:.85;margin-bottom:3px">${pais}</div>
+                        <div style="font-size:12px;line-height:1.25">${grupos[pais].join(", ")}</div>
+                    </div>
+                `).join("")}
+            </div>
+        `;
+    }
+
+    function abrirPopupRealizarIntercambio() {
+        if (!ultimoCruceContexto || !ultimoCruceContexto.cruce) {
+            Swal.fire({ title: "Primero compará", text: "Hacé un cruce con un amigo para armar el intercambio.", icon: "info", ...swalBase });
+            return;
+        }
+        const { cruce, sugerencia, payload } = ultimoCruceContexto;
+        const opcionesDar = idsUnicosCruce(cruce.yoLeSirvo);
+        const opcionesPedir = idsUnicosCruce(cruce.elMeSirve);
+        if (!opcionesDar.length || !opcionesPedir.length) {
+            Swal.fire({ title: "Sin intercambio posible", text: "No hay figuritas para intercambiar en este cruce.", icon: "info", ...swalBase });
+            return;
+        }
+        const sugeridasDar = new Set((sugerencia && sugerencia.darElegidos ? sugerencia.darElegidos : []).map((x) => x.id));
+        const sugeridasPedir = new Set((sugerencia && sugerencia.pedirElegidos ? sugerencia.pedirElegidos : []).map((x) => x.id));
+        const favoritasAmigoSet = (ultimoCruceContexto && ultimoCruceContexto.favoritasAmigoSet) ? ultimoCruceContexto.favoritasAmigoSet : new Set();
+        const favoritasMiasSet = new Set(
+            figuritas
+                .filter((f) => !!f.favorite)
+                .map((f) => String(f.id || "").toUpperCase())
+        );
+        const misRepesTotales = figuritas
+            .filter((f) => String(f.estado).toLowerCase() === "tengo" && Number(f.cantidad || 0) > 0)
+            .map((f) => String(f.id || "").toUpperCase());
+        const setUtilesDar = new Set(opcionesDar.map((x) => String(x || "").toUpperCase()));
+        const noUtiles = Array.from(new Set(misRepesTotales.filter((id) => !setUtilesDar.has(id))));
+        const favoritasTuyasEnAmigo = opcionesPedir.filter((id) => favoritasMiasSet.has(String(id || "").toUpperCase()));
+        const favoritasAmigoQueVosTenes = figuritas
+            .filter((f) => String(f.estado).toLowerCase() === "tengo" && favoritasAmigoSet.has(String(f.id || "").toUpperCase()))
+            .map((f) => String(f.id || "").toUpperCase());
+        const htmlDar = renderListaAgrupadaCheckbox(opcionesDar, "chk-dar", sugeridasDar);
+        const htmlPedir = renderListaAgrupadaCheckbox(opcionesPedir, "chk-pedir", sugeridasPedir);
+        const htmlNoUtiles = renderListaAgrupadaSoloTexto(noUtiles);
+        const htmlFavMiasEnAmigo = renderListaAgrupadaSoloTexto(favoritasTuyasEnAmigo);
+        const htmlFavQuiereAmigo = renderListaAgrupadaSoloTexto(favoritasAmigoQueVosTenes);
+
+        Swal.fire({
+            title: "Realizar intercambio",
+            html: `
+                <div id="resumen-seleccion-intercambio" style="text-align:left;margin:0 0 10px;padding:8px;border:1px solid rgba(255,255,255,.18);border-radius:8px;background:rgba(0,0,0,.22);font-size:12px;line-height:1.35"></div>
+                <div style="display:grid;grid-template-columns:1fr;gap:10px;text-align:left;max-height:60vh;overflow:auto">
+                    <div style="grid-column:1 / -1">
+                        <h4 style="margin:0 0 8px;color:#ffd700">Favoritas tuyas que tiene tu amigo</h4>
+                        ${htmlFavMiasEnAmigo}
+                    </div>
+                    <div style="grid-column:1 / -1">
+                        <h4 style="margin:0 0 8px;color:#f6b3ff">Favoritas de tu amigo que vos tenés</h4>
+                        ${htmlFavQuiereAmigo}
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 2px 1fr;gap:10px;align-items:start">
+                    <div>
+                        <h4 style="margin:0 0 8px;color:#7ee787">Vos das</h4>
+                        ${htmlDar}
+                    </div>
+                    <div style="background:#ff3b30;border-radius:2px;min-height:100%"></div>
+                    <div>
+                        <h4 style="margin:0 0 8px;color:#79c0ff">Vos pedís</h4>
+                        ${htmlPedir}
+                    </div>
+                    </div>
+                    <div style="grid-column:1 / -1;margin-top:4px">
+                        <h4 style="margin:0 0 8px;color:#c9d1d9">Tus repetidas no útiles en este cruce</h4>
+                        ${htmlNoUtiles}
+                    </div>
+                </div>
+                <small style="display:block;margin-top:10px;opacity:.85">Podés ajustar la selección. Se toman pares 1 a 1 según el mínimo entre ambos lados.</small>
+            `,
+            width: 760,
+            showCancelButton: true,
+            confirmButtonText: "Confirmar intercambio",
+            cancelButtonText: "Cancelar",
+            focusConfirm: false,
+            ...swalBase,
+            didOpen: () => {
+                const root = Swal.getHtmlContainer();
+                const resumen = root ? root.querySelector("#resumen-seleccion-intercambio") : null;
+                const actualizarResumen = () => {
+                    if (!root || !resumen) return;
+                    const idsDar = Array.from(root.querySelectorAll(".chk-dar:checked")).map((el) => el.getAttribute("data-id"));
+                    const idsPedir = Array.from(root.querySelectorAll(".chk-pedir:checked")).map((el) => el.getAttribute("data-id"));
+                    const total = Math.min(idsDar.length, idsPedir.length);
+                    const fmt = (arr) => arr.length ? arr.join(", ") : "(ninguna)";
+                    resumen.innerHTML =
+                        `<b>Seleccionadas activamente:</b> ${idsDar.length} das / ${idsPedir.length} pedís<br>` +
+                        `<b>Total aplicable:</b> ${total}<br>` +
+                        `<b>Vos das (${idsDar.length}):</b> ${fmt(idsDar)}<br>` +
+                        `<b>Vos pedís (${idsPedir.length}):</b> ${fmt(idsPedir)}`;
+                };
+                root.querySelectorAll(".chk-dar, .chk-pedir").forEach((el) => {
+                    el.addEventListener("change", actualizarResumen);
+                });
+                actualizarResumen();
+            },
+            preConfirm: () => {
+                const root = Swal.getHtmlContainer();
+                const idsDar = Array.from(root.querySelectorAll(".chk-dar:checked")).map((el) => el.getAttribute("data-id"));
+                const idsPedir = Array.from(root.querySelectorAll(".chk-pedir:checked")).map((el) => el.getAttribute("data-id"));
+                const total = Math.min(idsDar.length, idsPedir.length);
+                if (total < 1) {
+                    Swal.showValidationMessage("Seleccioná al menos 1 figurita de cada lado.");
+                    return false;
+                }
+                return { idsDar: idsDar.slice(0, total), idsPedir: idsPedir.slice(0, total), payload };
+            }
+        }).then(async (res) => {
+            if (!res.isConfirmed || !res.value) return;
+            await confirmarIntercambioSeleccionado(res.value.idsDar, res.value.idsPedir, res.value.payload, true);
+        });
+    }
+
+    async function confirmarIntercambioSeleccionado(idsDar, idsPedir, payload = null, notificarAmigo = true) {
+        if (!requiereSesionParaEditar()) return;
+        const dar = Array.from(new Set((idsDar || []).map((x) => String(x || "").trim().toUpperCase()).filter(Boolean)));
+        const pedir = Array.from(new Set((idsPedir || []).map((x) => String(x || "").trim().toUpperCase()).filter(Boolean)));
+        const total = Math.min(dar.length, pedir.length);
+        if (total < 1) return;
+
+        for (let i = 0; i < total; i++) {
+            const fig = figuritas.find((f) => String(f.id || "").toUpperCase() === dar[i]);
+            if (!fig || String(fig.estado).toLowerCase() !== "tengo" || Number(fig.cantidad || 0) < 1) {
+                return Swal.fire({ title: "No disponible", text: `Ya no tenés repetida para dar: ${dar[i]}.`, icon: "warning", ...swalBase });
+            }
+        }
+
+        for (let i = 0; i < total; i++) {
+            const figDoy = figuritas.find((f) => String(f.id || "").toUpperCase() === dar[i]);
+            const figPido = figuritas.find((f) => String(f.id || "").toUpperCase() === pedir[i]);
+            if (!figDoy || !figPido) continue;
+
+            figDoy.cantidad = Math.max(0, Number(figDoy.cantidad || 0) - 1);
+            if (figPido.estado === "faltan") figPido.estado = "tengo";
+            else figPido.cantidad = Number(figPido.cantidad || 0) + 1;
+        }
+
+        renderMejorado();
+        guardarDatos();
+        programarRefrescoSuave();
+
+        await Swal.fire({
+            title: "Intercambio confirmado",
+            text: `Se aplicaron ${total} figurita(s) en tu álbum.`,
+            icon: "success",
+            timer: 1800,
+            showConfirmButton: false,
+            ...swalBase
+        });
+
+        if (notificarAmigo) {
+            await crearOfertaIntercambioPendiente(dar.slice(0, total), pedir.slice(0, total));
+        }
+
+        if (payload) await ejecutarCruceConPayload(payload);
+    }
+
+    async function crearOfertaIntercambioPendiente(idsDar, idsPedir) {
+        const sb = getSupabase();
+        const ctx = ultimoCruceContexto || {};
+        const friendId = ctx.friendId || null;
+        if (!sb || !friendId) return;
+        const { data, error } = await sb.rpc("create_trade_offer", {
+            p_friend_id: friendId,
+            p_ids_give: idsDar,
+            p_ids_take: idsPedir
+        });
+        if (error) {
+            console.error(error);
+            return;
+        }
+        if (data && data.ok) {
+            Swal.fire({
+                title: "Oferta enviada",
+                text: `Tu amigo recibirá la propuesta para aplicar ${Number(data.count || idsDar.length)} figurita(s).`,
+                icon: "info",
+                timer: 1800,
+                showConfirmButton: false,
+                ...swalBase
+            });
+        }
+    }
+
+    function actualizarBadgeMensajes() {
+        const badge = document.getElementById("badge-mensajes");
+        if (!badge) return;
+        const n = Array.isArray(ofertasPendientesCache) ? ofertasPendientesCache.length : 0;
+        badge.textContent = String(n);
+        badge.classList.toggle("hidden", n < 1);
+    }
+
+    async function cargarOfertasPendientes() {
+        if (!usuarioActual) {
+            ofertasPendientesCache = [];
+            actualizarBadgeMensajes();
+            return [];
+        }
+        const sb = getSupabase();
+        if (!sb) return [];
+        const { data, error } = await sb.rpc("list_trade_offers_incoming");
+        if (error) {
+            console.error(error);
+            return [];
+        }
+        ofertasPendientesCache = Array.isArray(data) ? data : [];
+        actualizarBadgeMensajes();
+        return ofertasPendientesCache;
+    }
+
+    async function resolverOfertaIntercambio(offerId, action) {
+        const sb = getSupabase();
+        if (!sb) return false;
+        const { error } = await sb.rpc("resolve_trade_offer", {
+            p_offer_id: offerId,
+            p_action: action
+        });
+        if (error) {
+            console.error(error);
+            Swal.fire({ title: "No se pudo actualizar", text: error.message, icon: "error", ...swalBase });
+            return false;
+        }
+        return true;
+    }
+
+    async function aplicarOfertaEnMiAlbum(oferta) {
+        const idsRecibo = Array.isArray(oferta && oferta.ids_give) ? oferta.ids_give : [];
+        const idsDoy = Array.isArray(oferta && oferta.ids_take) ? oferta.ids_take : [];
+        return confirmarIntercambioSeleccionado(idsDoy, idsRecibo, null, false);
+    }
+
+    async function abrirBandejaMensajes() {
+        const pendientes = await cargarOfertasPendientes();
+        if (!pendientes.length) {
+            return abrirContacto();
+        }
+        const oferta = pendientes[0];
+        const idsGive = Array.isArray(oferta.ids_give) ? oferta.ids_give : [];
+        const idsTake = Array.isArray(oferta.ids_take) ? oferta.ids_take : [];
+        const total = Math.min(idsGive.length, idsTake.length);
+        const nombre = oferta.from_username || "Otro usuario";
+        const listaDa = idsGive.length ? idsGive.join(", ") : "(ninguna)";
+        const listaPide = idsTake.length ? idsTake.join(", ") : "(ninguna)";
+        const ok = await Swal.fire({
+            title: "Oferta de intercambio",
+            html: `
+                <div style="text-align:left;line-height:1.4">
+                    <p style="margin:0 0 8px">${nombre} realizó un intercambio de <b>${total}</b> figuritas contigo.</p>
+                    <p style="margin:0 0 4px"><b>Te da:</b> ${listaDa}</p>
+                    <p style="margin:0 0 8px"><b>Te pide:</b> ${listaPide}</p>
+                    <p style="margin:0">¿Querés aplicar el mismo intercambio en tu cuenta?</p>
+                </div>
+            `,
+            icon: "question",
+            showCancelButton: true,
+            confirmButtonText: "Aceptar",
+            cancelButtonText: "Rechazar",
+            ...swalBase
+        });
+        if (ok.isConfirmed) {
+            const aplicado = await aplicarOfertaEnMiAlbum(oferta);
+            if (aplicado !== false) {
+                await resolverOfertaIntercambio(oferta.offer_id, "accepted");
+            }
+        } else if (ok.dismiss === Swal.DismissReason.cancel) {
+            await resolverOfertaIntercambio(oferta.offer_id, "rejected");
+        }
+        await cargarOfertasPendientes();
+    }
+
+    function iniciarPollingOfertas() {
+        if (_pollOfertasTimer) clearInterval(_pollOfertasTimer);
+        _pollOfertasTimer = setInterval(() => { void cargarOfertasPendientes(); }, 20000);
+        void cargarOfertasPendientes();
+    }
+
     function mostrarResultadoCruce(nombreAmigo, cruce, favoritasAmigoSet = new Set()) {
         const panel = document.getElementById("panel-cruce-intercambio");
         if (!panel) return;
         const sugerencia = prepararSugerenciaPedido(cruce, favoritasAmigoSet);
+        ultimoCruceContexto = { nombreAmigo, cruce, sugerencia, favoritasAmigoSet, payload: null };
         document.getElementById("cruce-titulo").textContent = "Cruce automático (repetidas ↔ faltantes)";
         document.getElementById("cruce-subtitulo").textContent =
             `Comparando tu álbum con el de: ${nombreAmigo}. ` +
@@ -2829,10 +3296,21 @@
         }
 
         const miBytes = albumBytesFromFiguritas(figuritas);
-        const cruce = cruzarAlbumBytes(miBytes, decoded.albumBytes, ids);
-        const favoritasAmigoSet = favoritasAmigoDesdePayload(payload);
+        const cruce = cruzarAlbumBytes(miBytes, decoded.albumBytes, ids, figuritas);
+        const favoritasAmigoSet = favoritasAmigoDesdePayload(payload, decoded.displayName);
+        const friendRow = Array.isArray(amigosCache)
+            ? amigosCache.find((r) => String(r && r.payload ? r.payload : "") === String(payload || ""))
+            : null;
         mostrarResultadoCruce(decoded.displayName, cruce, favoritasAmigoSet);
         const sugerencia = prepararSugerenciaPedido(cruce, favoritasAmigoSet);
+        ultimoCruceContexto = {
+            nombreAmigo: decoded.displayName,
+            cruce,
+            sugerencia,
+            favoritasAmigoSet,
+            payload,
+            friendId: friendRow && friendRow.friend_id ? friendRow.friend_id : null
+        };
 
         Swal.fire({
             title: "Cruce listo",
@@ -3036,7 +3514,6 @@ document.getElementById("amigo-codigo-input")?.addEventListener("keydown", e => 
     let _qrRenderSeq = 0;
     function scheduleRefreshQR() {
         if (typeof usuarioActual === "undefined" || !usuarioActual) return;
-        if (vistaActual !== "amigos") return;
         clearTimeout(_refreshQrTimer);
         _refreshQrTimer = setTimeout(() => {
             if (typeof generarInterfazCompartir === "function") void generarInterfazCompartir();

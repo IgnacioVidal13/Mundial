@@ -621,3 +621,178 @@ $$;
 
 revoke all on function public.remove_friend(uuid) from public;
 grant execute on function public.remove_friend(uuid) to authenticated;
+
+-- Ofertas de intercambio pendientes entre amigos.
+create table if not exists public.album_trade_offers (
+  id uuid primary key default extensions.gen_random_uuid(),
+  from_user_id uuid not null references auth.users (id) on delete cascade,
+  to_user_id uuid not null references auth.users (id) on delete cascade,
+  ids_give text[] not null default '{}'::text[],
+  ids_take text[] not null default '{}'::text[],
+  status text not null default 'pending',
+  created_at timestamptz not null default now(),
+  resolved_at timestamptz,
+  check (from_user_id <> to_user_id),
+  check (status in ('pending', 'accepted', 'rejected')),
+  check (cardinality(ids_give) > 0),
+  check (cardinality(ids_take) > 0)
+);
+
+do $$
+begin
+  if not exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'album_trade_offers' and column_name = 'ids_give'
+  ) then
+    alter table public.album_trade_offers add column ids_give text[] not null default '{}'::text[];
+  end if;
+
+  if not exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'album_trade_offers' and column_name = 'ids_take'
+  ) then
+    alter table public.album_trade_offers add column ids_take text[] not null default '{}'::text[];
+  end if;
+
+  if not exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'album_trade_offers' and column_name = 'status'
+  ) then
+    alter table public.album_trade_offers add column status text not null default 'pending';
+  end if;
+
+  if not exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'album_trade_offers' and column_name = 'resolved_at'
+  ) then
+    alter table public.album_trade_offers add column resolved_at timestamptz;
+  end if;
+
+  -- Compatibilidad con nombres viejos de columnas.
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'album_trade_offers' and column_name = 'ids_doy'
+  ) then
+    execute 'update public.album_trade_offers set ids_give = coalesce(ids_give, ids_doy) where (ids_give is null or cardinality(ids_give)=0)';
+  end if;
+
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'album_trade_offers' and column_name = 'ids_recibo'
+  ) then
+    execute 'update public.album_trade_offers set ids_take = coalesce(ids_take, ids_recibo) where (ids_take is null or cardinality(ids_take)=0)';
+  end if;
+end;
+$$;
+
+create index if not exists album_trade_offers_to_status_idx
+  on public.album_trade_offers (to_user_id, status, created_at desc);
+
+alter table public.album_trade_offers enable row level security;
+alter table public.album_trade_offers force row level security;
+revoke all on public.album_trade_offers from anon, authenticated;
+
+create or replace function public.create_trade_offer(
+  p_friend_id uuid,
+  p_ids_give text[],
+  p_ids_take text[]
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_uid uuid := auth.uid();
+  v_count int;
+begin
+  if v_uid is null then
+    raise exception 'not_authenticated' using errcode = '28000';
+  end if;
+
+  if p_friend_id is null or p_friend_id = v_uid then
+    return jsonb_build_object('ok', false, 'reason', 'invalid_friend');
+  end if;
+
+  if coalesce(cardinality(p_ids_give), 0) < 1 or coalesce(cardinality(p_ids_take), 0) < 1 then
+    return jsonb_build_object('ok', false, 'reason', 'empty_offer');
+  end if;
+
+  if not exists (
+    select 1 from public.album_amigos a
+    where a.owner_id = v_uid and a.friend_id = p_friend_id
+  ) then
+    return jsonb_build_object('ok', false, 'reason', 'not_friend');
+  end if;
+
+  v_count := least(cardinality(p_ids_give), cardinality(p_ids_take));
+  insert into public.album_trade_offers (from_user_id, to_user_id, ids_give, ids_take, status)
+  values (v_uid, p_friend_id, p_ids_give[1:v_count], p_ids_take[1:v_count], 'pending');
+
+  return jsonb_build_object('ok', true, 'count', v_count);
+end;
+$$;
+
+revoke all on function public.create_trade_offer(uuid, text[], text[]) from public;
+grant execute on function public.create_trade_offer(uuid, text[], text[]) to authenticated;
+
+create or replace function public.list_trade_offers_incoming()
+returns jsonb
+language sql
+security definer
+set search_path = public
+as $$
+  select coalesce(
+    jsonb_agg(
+      jsonb_build_object(
+        'offer_id', o.id,
+        'from_user_id', o.from_user_id,
+        'from_username', coalesce(p.username, 'Amigo'),
+        'ids_give', to_jsonb(o.ids_give),
+        'ids_take', to_jsonb(o.ids_take),
+        'created_at', o.created_at
+      ) order by o.created_at desc
+    ),
+    '[]'::jsonb
+  )
+  from public.album_trade_offers o
+  left join public.profiles p on p.id = o.from_user_id
+  where o.to_user_id = auth.uid()
+    and o.status = 'pending';
+$$;
+
+revoke all on function public.list_trade_offers_incoming() from public;
+grant execute on function public.list_trade_offers_incoming() to authenticated;
+
+create or replace function public.resolve_trade_offer(
+  p_offer_id uuid,
+  p_action text
+)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_action text := lower(trim(coalesce(p_action, '')));
+begin
+  if auth.uid() is null then
+    raise exception 'not_authenticated' using errcode = '28000';
+  end if;
+  if v_action not in ('accepted', 'rejected') then
+    return false;
+  end if;
+
+  update public.album_trade_offers
+  set status = v_action,
+      resolved_at = now()
+  where id = p_offer_id
+    and to_user_id = auth.uid()
+    and status = 'pending';
+
+  return found;
+end;
+$$;
+
+revoke all on function public.resolve_trade_offer(uuid, text) from public;
+grant execute on function public.resolve_trade_offer(uuid, text) to authenticated;
