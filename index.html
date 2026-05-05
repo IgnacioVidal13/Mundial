@@ -863,6 +863,53 @@
     }
 
     const swalBase = { background: "#1a1a1a", color: "#ffffff", confirmButtonColor: "#2196F3" };
+    const ONBOARDING_FLASHCARDS = [
+        {
+            tag: "Figuritas",
+            title: "Cómo funciona el álbum",
+            body: [
+                "Cada figurita tiene un código como <strong>ARG 13</strong> o <strong>FWC 05</strong>.",
+                "Tocá una figurita para marcarla como pegada.",
+                "Si tocás una que ya tenías, suma una repetida."
+            ]
+        },
+        {
+            tag: "Favoritas",
+            title: "Pegadas, repetidas y favoritas",
+            body: [
+                "La estrella de cada figurita la marca como favorita.",
+                "Las favoritas aparecen en su pestaña propia.",
+                "También ayudan en las sugerencias de intercambio."
+            ]
+        },
+        {
+            tag: "Intercambios",
+            title: "Cómo se compara con un amigo",
+            body: [
+                "En <strong>Amigos</strong> ves tu código y tu QR para compartir.",
+                "Pegar el código de otra persona abre el cruce automático.",
+                "El panel te dice qué repetidas tuyas le sirven y cuáles de él te sirven a vos."
+            ]
+        },
+        {
+            tag: "Amigos",
+            title: "Cómo se agregan amigos",
+            body: [
+                "Podés agregar a alguien por su código.",
+                "Si te agregan por QR o por código, la amistad queda vinculada en ambos lados.",
+                "También ves el progreso del álbum de cada amigo guardado."
+            ]
+        },
+        {
+            tag: "PDF y QR",
+            title: "Compartir y descargar",
+            body: [
+                "El botón <strong>Descargar PDF</strong> genera un resumen imprimible de tu álbum.",
+                "El QR y el código de intercambio viven en <strong>Amigos</strong>.",
+                "Compartilos para que otra persona compare o te agregue."
+            ]
+        }
+    ];
 
     let sbClient = null;
     function marcarClickBoton(btn) {
@@ -1075,6 +1122,120 @@
                 if (confirmBtn) confirmBtn.onclick = copiarEmailSoporte;
             },
             ...swalBase
+        });
+    }
+
+    function onboardingKeyForUser(email) {
+        return `mlm_onboarding_visto_${String(email || "").trim().toLowerCase()}`;
+    }
+
+    function onboardingYaVisto(email) {
+        try {
+            return localStorage.getItem(onboardingKeyForUser(email)) === "1";
+        } catch (error) {
+            return false;
+        }
+    }
+
+    function marcarOnboardingVisto(email) {
+        try {
+            localStorage.setItem(onboardingKeyForUser(email), "1");
+        } catch (error) {
+            console.warn("marcarOnboardingVisto:", error);
+        }
+    }
+
+    function renderFlashcardOnboarding(idx) {
+        const card = ONBOARDING_FLASHCARDS[idx] || ONBOARDING_FLASHCARDS[0];
+        return `
+            <div style="text-align:left">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;">
+                    <span style="display:inline-flex;align-items:center;padding:5px 10px;border-radius:999px;background:rgba(255,215,0,0.12);border:1px solid rgba(255,215,0,0.38);color:#ffd700;font-size:12px;font-weight:bold;letter-spacing:0;">${card.tag}</span>
+                    <span style="font-size:12px;opacity:.75">${idx + 1}/${ONBOARDING_FLASHCARDS.length}</span>
+                </div>
+                <div style="padding:18px;border-radius:14px;background:linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.03));border:1px solid rgba(255,255,255,0.12);box-shadow:inset 0 0 0 1px rgba(0,0,0,0.08);min-height:240px;">
+                    <h3 style="margin:0 0 14px;color:#ffd700;font-size:24px;line-height:1.15;">${card.title}</h3>
+                    <div style="display:grid;gap:10px;font-size:16px;line-height:1.45;">
+                        ${card.body.map((line) => `<div style="padding:12px 14px;border-radius:10px;background:rgba(0,0,0,0.24);border:1px solid rgba(255,255,255,0.08);">${line}</div>`).join("")}
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    async function mostrarFlashcardsPostLogin(email) {
+        const clave = String(email || usuarioActual || "").trim().toLowerCase();
+        if (!clave || onboardingYaVisto(clave)) return;
+        return new Promise((resolve) => {
+            let cerrado = false;
+            const cerrar = (marcar = true) => {
+                if (cerrado) return;
+                cerrado = true;
+                if (marcar) marcarOnboardingVisto(clave);
+                Swal.close();
+                resolve(marcar);
+            };
+            let indice = 0;
+            Swal.fire({
+                title: "Guía rápida",
+                html: `
+                    <div id="onboarding-shell" style="text-align:left">
+                        <div id="onboarding-card"></div>
+                        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:16px;flex-wrap:wrap;">
+                            <button type="button" id="onboarding-skip" style="padding:10px 14px;border:none;border-radius:8px;background:#666;color:#fff;font-weight:bold;cursor:pointer;">Omitir</button>
+                            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-left:auto;">
+                                <button type="button" id="onboarding-prev" style="padding:10px 14px;border:none;border-radius:8px;background:#333;color:#fff;font-weight:bold;cursor:pointer;">Anterior</button>
+                                <button type="button" id="onboarding-next" style="padding:10px 14px;border:none;border-radius:8px;background:#2196F3;color:#fff;font-weight:bold;cursor:pointer;">Siguiente</button>
+                            </div>
+                        </div>
+                    </div>
+                `,
+                width: 840,
+                showConfirmButton: false,
+                showCancelButton: false,
+                allowOutsideClick: false,
+                allowEscapeKey: false,
+                padding: "18px",
+                ...swalBase,
+                didOpen: () => {
+                    const popup = Swal.getPopup();
+                    const card = popup ? popup.querySelector("#onboarding-card") : null;
+                    const btnSkip = popup ? popup.querySelector("#onboarding-skip") : null;
+                    const btnPrev = popup ? popup.querySelector("#onboarding-prev") : null;
+                    const btnNext = popup ? popup.querySelector("#onboarding-next") : null;
+
+                    const pintar = () => {
+                        if (!card) return;
+                        card.innerHTML = renderFlashcardOnboarding(indice);
+                        if (btnPrev) btnPrev.disabled = indice === 0;
+                        if (btnPrev) btnPrev.style.opacity = indice === 0 ? "0.45" : "1";
+                        if (btnPrev) btnPrev.style.cursor = indice === 0 ? "not-allowed" : "pointer";
+                        if (btnNext) btnNext.textContent = indice === ONBOARDING_FLASHCARDS.length - 1 ? "Empezar" : "Siguiente";
+                    };
+
+                    if (btnSkip) btnSkip.onclick = () => cerrar(true);
+                    if (btnPrev) btnPrev.onclick = () => {
+                        if (indice > 0) {
+                            indice--;
+                            pintar();
+                        }
+                    };
+                    if (btnNext) btnNext.onclick = () => {
+                        if (indice >= ONBOARDING_FLASHCARDS.length - 1) {
+                            cerrar(true);
+                            return;
+                        }
+                        indice++;
+                        pintar();
+                    };
+                    pintar();
+                },
+                willClose: () => {
+                    if (!cerrado) cerrar(true);
+                }
+            }).then(() => {
+                if (!cerrado) cerrar(true);
+            });
         });
     }
 
@@ -1347,12 +1508,14 @@
                     if (await aplicarSesionDesdeAuthData(sb, data)) {
                         nombreVisibleUsuario = normNombre;
                         actualizarTextoChipUsuario();
-                        return Swal.fire({
+                        await Swal.fire({
                             title: "¡Listo!",
                             text: "Tu cuenta quedó creada. Ya podés cargar tu álbum.",
                             icon: "success",
                             ...swalBase
                         });
+                        await mostrarFlashcardsPostLogin(email);
+                        return;
                     }
 
                     await Swal.fire({
@@ -1385,7 +1548,7 @@
                         ...swalBase
                     });
                 }
-                return Swal.fire({
+                await Swal.fire({
                     title: "¡Hola de nuevo!",
                     text: "Sesión iniciada.",
                     icon: "success",
@@ -1393,6 +1556,8 @@
                     showConfirmButton: false,
                     ...swalBase
                 });
+                await mostrarFlashcardsPostLogin(email);
+                return;
             }
 
             let usuarios = JSON.parse(localStorage.getItem("db_usuarios") || "{}");
@@ -1450,7 +1615,7 @@
                 cerrarLoginOverlay();
                 await cargarDatosUsuario();
                 aplicarSesionActivaUI(true);
-                return Swal.fire({
+                await Swal.fire({
                     title: "¡Hola de nuevo!",
                     text: "Sesión iniciada.",
                     icon: "success",
@@ -1458,6 +1623,8 @@
                     showConfirmButton: false,
                     ...swalBase
                 });
+                await mostrarFlashcardsPostLogin(email);
+                return;
             }
             return Swal.fire({
                 title: "No encontramos la cuenta",
